@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "281561259389",
+    "project_id": "sporteve-7afbf",
+    "storage_bucket": "sporteve-7afbf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:281561259389:android:4d773c4f95c30749bc4014",
+        "android_client_info": {
+          "package_name": "com.sporteve.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "281561259389-ofn3r7h3k1n1cm22325325no5aon78du.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sporteve.app",
+            "certificate_hash": "29470627ece1cf7f57df0127463d672810a39497"
+          }
+        },
+        {
+          "client_id": "281561259389-f419lu49ls5ita67or3hpvsftdq7b1ps.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDeVe1c546eOgXzL3_8CE7vvTDZNj3IoFY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "281561259389-f419lu49ls5ita67or3hpvsftdq7b1ps.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

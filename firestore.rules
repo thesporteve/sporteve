@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // News Staging - Temporary permissive rules for testing
+    match /news_staging/{articleId} {
+      allow read, write: if true; // Allow all operations for testing
+    }
+    
+    // Keep all other existing rules unchanged...
+    match /news_articles/{articleId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+    
+    match /athletes/{athleteId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+  }
+}
