@@ -41,12 +41,13 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyD2ZQZL9ZI8hOq5j98qYi_2l6F0L2v3y7s',
-    appId: '1:281561259389:android:4d773c4f95c30749bc4014',
+    apiKey: 'AIzaSyATU4qjcbfoc657dUSS8_ti7MBcUY97T-c',
+    appId: '1:281561259389:web:a43d50bc970606a4bc4014',
     messagingSenderId: '281561259389',
-    projectId: 'sporteve-app',
-    authDomain: 'sporteve-app.firebaseapp.com',
-    storageBucket: 'sporteve-7afbf.appspot.com',
+    projectId: 'sporteve-7afbf',
+    authDomain: 'sporteve-7afbf.firebaseapp.com',
+    storageBucket: 'sporteve-7afbf.firebasestorage.app',
+    measurementId: 'G-CWRNNLF3CN',
   );
 
   static const FirebaseOptions android = FirebaseOptions(

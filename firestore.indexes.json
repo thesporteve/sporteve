@@ -13,6 +13,16 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "admins",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isActive",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

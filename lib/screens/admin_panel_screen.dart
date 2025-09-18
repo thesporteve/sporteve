@@ -294,14 +294,14 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                       _buildTextField(
                         controller: _summaryController,
                         label: 'Description (Shows on news cards)',
-                        hint: 'Brief description shown on article cards (min 20 chars)',
-                        maxLines: 3,
+                        hint: 'Brief description shown on article cards (min 100 chars)',
+                        maxLines: 8,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'Description is required';
                           }
-                          if (value.trim().length < 20) {
-                            return 'Description must be at least 20 characters';
+                          if (value.trim().length < 100) {
+                            return 'Description must be at least 100 characters';
                           }
                           return null;
                         },
@@ -313,14 +313,14 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                       _buildTextField(
                         controller: _contentController,
                         label: 'Summary (Shows only on detail page)',
-                        hint: 'Complete article content for detail page (min 100 chars)',
-                        maxLines: 8,
+                        hint: 'Complete article content for detail page (min 50 chars)',
+                        maxLines: 5,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'Summary is required';
                           }
                           if (value.trim().length < 100) {
-                            return 'Summary must be at least 100 characters';
+                            return 'Summary must be at least 50 characters';
                           }
                           return null;
                         },
