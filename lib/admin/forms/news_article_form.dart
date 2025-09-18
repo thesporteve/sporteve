@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/news_article.dart';
 import '../services/admin_data_service.dart';
-import '../services/admin_notification_service.dart';
+// Removed admin_notification_service import - notifications now automatic via Cloud Functions
 import '../providers/admin_auth_provider.dart';
 import '../theme/admin_theme.dart';
 
@@ -220,35 +220,7 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
     }
   }
 
-  Future<void> _sendTestNotification() async {
-    try {
-      final success = await AdminNotificationService.instance.sendTestNotification();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              success 
-                  ? '🧪 Test notification sent! Check your mobile device.'
-                  : '❌ Failed to send test notification.'
-            ),
-            backgroundColor: success ? AdminTheme.successColor : AdminTheme.errorColor,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: AdminTheme.errorColor,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
+  // Test notification method removed - notifications now work automatically via article creation
 
   @override
   Widget build(BuildContext context) {
@@ -577,30 +549,19 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      SwitchListTile(
-                        title: const Text('Breaking News'),
-                        subtitle: const Text('Send as high-priority notification to all users'),
-                        value: _isBreaking,
-                        onChanged: (value) {
-                          setState(() {
-                            _isBreaking = value;
-                          });
-                        },
-                        activeColor: AdminTheme.primaryColor,
-                      ),
-                      const SizedBox(height: 8),
-                      // Test Notification Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: _sendTestNotification,
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          icon: const Icon(Icons.send, size: 18),
-                          label: const Text('Send Test Notification'),
-                        ),
-                      ),
+                      // Breaking News feature disabled per requirement
+                      // SwitchListTile(
+                      //   title: const Text('Breaking News'),
+                      //   subtitle: const Text('Send as high-priority notification to all users'),
+                      //   value: _isBreaking,
+                      //   onChanged: (value) {
+                      //     setState(() {
+                      //       _isBreaking = value;
+                      //     });
+                      //   },
+                      //   activeColor: AdminTheme.primaryColor,
+                      // ),
+                      // Test notification button removed - real notifications work via article creation flow
                     ],
                   ),
                 ),

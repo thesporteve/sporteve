@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/news_article.dart';
 import '../../models/tournament.dart';
 import '../../models/athlete.dart';
-import 'admin_notification_service.dart';
+// Removed admin_notification_service import - notifications now handled by Cloud Functions
 import '../../services/firebase_service.dart';
 import '../../services/tournament_service.dart';
 
@@ -103,25 +103,9 @@ class AdminDataService {
       // Add to news_articles collection
       final publishedArticleId = await addNewsArticle(article, toStaging: false);
       
-      // Send push notification to mobile app users
-      try {
-        final notificationSuccess = await AdminNotificationService.instance.sendArticleNotification(
-          title: article.title,
-          summary: article.summary,
-          category: article.category,
-          articleId: publishedArticleId,
-          isBreaking: article.isBreaking ?? false,
-        );
-        
-        if (notificationSuccess) {
-          print('✅ Push notification sent for published article: ${article.title}');
-        } else {
-          print('⚠️ Failed to send push notification for: ${article.title}');
-        }
-      } catch (notificationError) {
-        // Don't fail the publishing process if notification fails
-        print('⚠️ Notification error (article still published): $notificationError');
-      }
+      // Note: Push notifications will be sent automatically via Cloud Function
+      // when the article is added to news_articles collection
+      print('📱 Article published, Cloud Function will send notifications: ${article.title}');
       
       // Remove from staging
       await _firestore

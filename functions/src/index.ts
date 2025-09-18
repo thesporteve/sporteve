@@ -38,8 +38,8 @@ export const processNewsStaging = functions.firestore
     
     Please provide:
     1. A compelling, SEO-friendly title (50 characters or less)
-    2. A concise description that hooks readers (max 120 chars, 2 lines for cards)
-    3. An engaging summary for the detail page (max 300 chars, mobile-friendly)
+    2. A concise description that hooks readers (max 120 chars, 2 lines)
+    3. An engaging summary for the detail page (max 300 chars)
     
     The description should be punchy and engaging for news cards.
     The summary should be informative but concise for the detail page.
@@ -145,3 +145,180 @@ export const processNewsStaging = functions.firestore
         context.params.docId);
     }
   });
+
+/**
+ * Push notification trigger when article is added to news_articles
+ */
+export const sendArticleNotification = functions.firestore
+  .document("news_articles/{docId}")
+  .onCreate(async (
+    snap: functions.firestore.QueryDocumentSnapshot,
+    context: functions.EventContext
+  ) => {
+    const data = snap.data();
+
+    if (!data || !data.title || !data.description || !data.category) {
+      console.log("Invalid article data for notification, skipping:", {
+        title: !data.title,
+        description: !data.description,
+        category: !data.category,
+      });
+      return;
+    }
+
+    try {
+      // Determine topics to send to
+      const topics = [];
+
+      // Always send to general sports news
+      topics.push("sports_news");
+
+      // Send to specific sport category
+      topics.push(`sport_${data.category.toLowerCase()}`);
+
+      console.log(`📱 Sending notifications to topics: ${topics} ` +
+        `for article: ${data.title}`);
+
+      // Send notification to each topic
+      for (const topic of topics) {
+        try {
+          const message = {
+            topic: topic,
+            notification: {
+              title: formatNotificationTitle(data.title, data.category),
+              body: formatNotificationBody(data.description),
+            },
+            data: {
+              article_id: context.params.docId,
+              category: data.category,
+              screen: "news_detail",
+              timestamp: Date.now().toString(),
+            },
+            android: {
+              priority: "high" as const,
+            },
+            apns: {
+              headers: {
+                "apns-priority": "10",
+              },
+            },
+          };
+
+          await admin.messaging().send(message);
+          console.log(`✅ Notification sent to topic "${topic}" ` +
+            `for article: ${data.title}`);
+
+          // Log to Firestore for tracking
+          await db.collection("notifications").add({
+            topic: topic,
+            title: message.notification.title,
+            body: message.notification.body,
+            data: message.data,
+            article_id: context.params.docId,
+            sent_at: admin.firestore.FieldValue.serverTimestamp(),
+            sent: true,
+          });
+        } catch (topicError: unknown) {
+          console.error("❌ Failed to send notification to " +
+            `topic "${topic}":`, topicError);
+
+          const errorMessage = topicError instanceof Error ?
+            topicError.message : "Unknown error occurred";
+
+          // Log failed notification to Firestore
+          await db.collection("notifications").add({
+            topic: topic,
+            title: formatNotificationTitle(data.title, data.category),
+            body: formatNotificationBody(data.description),
+            data: {
+              article_id: context.params.docId,
+              category: data.category,
+              screen: "news_detail",
+              timestamp: Date.now().toString(),
+            },
+            article_id: context.params.docId,
+            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            sent: false,
+            error: errorMessage,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error sending article notification:", error);
+    }
+  });
+
+/**
+ * Format notification title based on article type
+ * @param {string} title Article title
+ * @param {string} category Article category
+ * @return {string} Formatted title
+ */
+function formatNotificationTitle(title: string, category: string): string {
+  const sportName = getCategoryDisplayName(category);
+  return `⚽ ${sportName}: ${truncateText(title, 45)}`;
+}
+
+/**
+ * Format notification body
+ * @param {string} description Article description
+ * @return {string} Formatted body
+ */
+function formatNotificationBody(description: string): string {
+  return truncateText(description, 100);
+}
+
+/**
+ * Get display name for sport category
+ * @param {string} category Category string
+ * @return {string} Display name
+ */
+function getCategoryDisplayName(category: string): string {
+  switch (category.toLowerCase()) {
+  case "football":
+    return "Football";
+  case "soccer":
+    return "Soccer";
+  case "basketball":
+    return "Basketball";
+  case "cricket":
+    return "Cricket";
+  case "tennis":
+    return "Tennis";
+  case "baseball":
+    return "Baseball";
+  case "hockey":
+    return "Hockey";
+  case "volleyball":
+    return "Volleyball";
+  case "rugby":
+    return "Rugby";
+  case "golf":
+    return "Golf";
+  case "athletics":
+    return "Athletics";
+  case "swimming":
+    return "Swimming";
+  case "boxing":
+    return "Boxing";
+  case "wrestling":
+    return "Wrestling";
+  case "weightlifting":
+    return "Weightlifting";
+  default:
+    return category.split("_")
+      .map((word) => word[0].toUpperCase() + word.substring(1))
+      .join(" ");
+  }
+}
+
+/**
+ * Truncate text to specified length
+ * @param {string} text Text to truncate
+ * @param {number} maxLength Maximum length
+ * @return {string} Truncated text
+ */
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return `${text.substring(0, maxLength - 3)}...`;
+}

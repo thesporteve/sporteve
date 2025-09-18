@@ -17,7 +17,8 @@ class AdminNotificationService {
     required String summary,
     required String category,
     required String articleId,
-    bool isBreaking = false,
+    // Breaking news feature disabled per requirement
+    // bool isBreaking = false,
   }) async {
     try {
       // Determine topics to send to
@@ -29,10 +30,11 @@ class AdminNotificationService {
       // Send to specific sport category
       topics.add('sport_${category.toLowerCase()}');
       
-      // Send to breaking news if marked as breaking
-      if (isBreaking) {
-        topics.add('breaking_news');
-      }
+      // Breaking news feature disabled per requirement
+      // // Send to breaking news if marked as breaking
+      // if (isBreaking) {
+      //   topics.add('breaking_news');
+      // }
 
       print('📱 Sending notifications to topics: $topics');
 
@@ -42,7 +44,7 @@ class AdminNotificationService {
       for (String topic in topics) {
         final success = await _sendTopicNotification(
           topic: topic,
-          title: _formatNotificationTitle(title, category, isBreaking),
+          title: _formatNotificationTitle(title, category),
           body: _formatNotificationBody(summary),
           articleId: articleId,
           category: category,
@@ -100,10 +102,11 @@ class AdminNotificationService {
   }
 
   /// Format notification title based on article type
-  String _formatNotificationTitle(String title, String category, bool isBreaking) {
-    if (isBreaking) {
-      return '🚨 BREAKING: ${_truncateText(title, 50)}';
-    }
+  String _formatNotificationTitle(String title, String category) {
+    // Breaking news feature disabled per requirement
+    // if (isBreaking) {
+    //   return '🚨 BREAKING: ${_truncateText(title, 50)}';
+    // }
     
     final sportName = _getCategoryDisplayName(category);
     return '⚽ $sportName: ${_truncateText(title, 45)}';
