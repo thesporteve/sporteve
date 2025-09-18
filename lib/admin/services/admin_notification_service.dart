@@ -82,7 +82,8 @@ class AdminNotificationService {
         'data': {
           'article_id': articleId,
           'category': category,
-          'screen': 'news_detail',
+          'screen': 'home',
+          'action': 'refresh_news',
           'timestamp': FieldValue.serverTimestamp(),
         },
         'created_at': FieldValue.serverTimestamp(),

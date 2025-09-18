@@ -64,6 +64,14 @@ class SportEveApp extends StatelessWidget {
             });
           }
           
+          // Set up notification tap callback to refresh news
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            NotificationService.instance.setNotificationTapCallback(() {
+              print('📱 Notification tapped - refreshing news feed...');
+              newsProvider.refresh();
+            });
+          });
+          
           return MaterialApp.router(
             title: 'SportEve',
             debugShowCheckedModeBanner: false,

@@ -11,6 +11,14 @@ class NotificationService {
   NotificationService._();
 
   final FirebaseService _firebaseService = FirebaseService.instance;
+  
+  // Callback to refresh data when notification is tapped
+  Function()? _onNotificationTap;
+
+  /// Set callback to be called when notification is tapped
+  void setNotificationTapCallback(Function() callback) {
+    _onNotificationTap = callback;
+  }
 
   /// Initialize notification service
   Future<void> initialize() async {
@@ -109,11 +117,14 @@ class NotificationService {
   /// Handle notification tap
   void _handleNotificationTap(RemoteMessage message) {
     print('Notification tapped: ${message.messageId}');
+    print('Triggering news refresh...');
+    
+    // Call the refresh callback to update news feed
+    _onNotificationTap?.call();
     
     // Extract navigation data
     final data = message.data;
     if (data.containsKey('screen')) {
-      // TODO: Navigate to specific screen
       print('Navigate to: ${data['screen']}');
       
       // Store navigation data for later use
