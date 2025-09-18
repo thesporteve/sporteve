@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/news_article.dart';
 import '../services/admin_data_service.dart';
+import '../services/admin_notification_service.dart';
 import '../providers/admin_auth_provider.dart';
 import '../theme/admin_theme.dart';
 
@@ -165,7 +166,7 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
         sourceUrl: _sourceUrlController.text.trim().isEmpty ? null : _sourceUrlController.text.trim(),
         imageUrl: _imageUrlController.text.trim().isEmpty ? null : _imageUrlController.text.trim(),
         readTime: _readTimeController.text.trim().isEmpty ? null : int.tryParse(_readTimeController.text.trim()),
-        isBreaking: false,
+        isBreaking: _isBreaking,
         views: widget.article?.views ?? 0,
         relatedArticles: widget.article?.relatedArticles ?? [],
         tournamentId: _selectedTournamentId,
@@ -215,6 +216,36 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
         setState(() {
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _sendTestNotification() async {
+    try {
+      final success = await AdminNotificationService.instance.sendTestNotification();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success 
+                  ? '🧪 Test notification sent! Check your mobile device.'
+                  : '❌ Failed to send test notification.'
+            ),
+            backgroundColor: success ? AdminTheme.successColor : AdminTheme.errorColor,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AdminTheme.errorColor,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     }
   }
@@ -531,7 +562,51 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
               ),
               const SizedBox(height: 16),
 
-              const SizedBox(height: 8),
+              // Breaking News Toggle
+              Card(
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Notification Options',
+                        style: AdminTheme.titleMedium.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        title: const Text('Breaking News'),
+                        subtitle: const Text('Send as high-priority notification to all users'),
+                        value: _isBreaking,
+                        onChanged: (value) {
+                          setState(() {
+                            _isBreaking = value;
+                          });
+                        },
+                        activeColor: AdminTheme.primaryColor,
+                      ),
+                      const SizedBox(height: 8),
+                      // Test Notification Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _sendTestNotification,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          icon: const Icon(Icons.send, size: 18),
+                          label: const Text('Send Test Notification'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 24),
 
               // Save button (mobile)
               if (MediaQuery.of(context).size.width <= 600)

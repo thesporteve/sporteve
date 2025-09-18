@@ -159,6 +159,20 @@ class _NewsPageCardState extends State<NewsPageCard> {
           _launchSourceUrl(context);
         }
       },
+      onDoubleTap: () {
+        // Navigate to news detail screen
+        context.push('/news/${widget.article.id}');
+        
+        // Show subtle feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Opening full article...'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            duration: const Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
       child: Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -436,16 +450,48 @@ class _NewsPageCardState extends State<NewsPageCard> {
 
   Widget _buildActionButtons() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _buildActionButton(
-          _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-          _toggleBookmark,
-          isHighlighted: true,
-          isLoading: _isBookmarkLoading,
+        // Double tap hint
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.touch_app,
+                size: 12,
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Double tap to read',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(width: 12),
-        _buildActionButton(Icons.share, () => ShareBottomSheet.show(context, widget.article)),
+        
+        // Action buttons
+        Row(
+          children: [
+            _buildActionButton(
+              _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+              _toggleBookmark,
+              isHighlighted: true,
+              isLoading: _isBookmarkLoading,
+            ),
+            const SizedBox(width: 12),
+            _buildActionButton(Icons.share, () => ShareBottomSheet.show(context, widget.article)),
+          ],
+        ),
       ],
     );
   }

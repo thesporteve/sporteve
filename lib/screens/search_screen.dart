@@ -53,8 +53,20 @@ class _SearchScreenState extends State<SearchScreen> {
     });
 
     try {
-      // Use FirebaseDataService to search from Firestore data
-      final results = await FirebaseDataService.instance.searchNews(query);
+      // Use NewsProvider's cached articles for faster search
+      final newsProvider = context.read<NewsProvider>();
+      
+      // If we don't have cached articles, load them first
+      if (newsProvider.articles.isEmpty) {
+        await newsProvider.loadNews();
+      }
+      
+      // Search through cached articles
+      final results = newsProvider.articles.where((article) =>
+          article.title.toLowerCase().contains(query.toLowerCase()) ||
+          article.summary.toLowerCase().contains(query.toLowerCase()) ||
+          article.content.toLowerCase().contains(query.toLowerCase()) ||
+          article.category.toLowerCase().contains(query.toLowerCase())).toList();
       
       if (mounted) {
         setState(() {

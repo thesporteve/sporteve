@@ -4,23 +4,43 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 
 import 'providers/news_provider.dart';
+import 'providers/settings_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/news_detail_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/bookmarks_screen.dart';
-import 'screens/admin_panel_screen.dart';
 import 'screens/signin_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/settings_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/firebase_service.dart';
 import 'services/auth_service.dart';
+import 'services/notification_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+/// Background message handler - must be top level function
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Initialize Firebase if not already done
+  await Firebase.initializeApp();
+  print('🔥 Background message received: ${message.messageId}');
+  print('📩 Title: ${message.notification?.title}');
+  print('📝 Body: ${message.notification?.body}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize Firebase
   await FirebaseService.instance.initialize();
+  
+  // Set background message handler
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  
+  // Initialize Push Notifications
+  await NotificationService.instance.initialize();
   
   runApp(const SportEveApp());
 }
@@ -33,15 +53,23 @@ class SportEveApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => NewsProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
       ],
-      child: Consumer<NewsProvider>(
-        builder: (context, newsProvider, child) {
+      child: Consumer2<NewsProvider, SettingsProvider>(
+        builder: (context, newsProvider, settingsProvider, child) {
+          // Initialize settings on first run
+          if (!settingsProvider.isLoaded) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              settingsProvider.loadSettings();
+            });
+          }
+          
           return MaterialApp.router(
             title: 'SportEve',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.darkTheme,
+            theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
-            themeMode: ThemeMode.dark,
+            themeMode: settingsProvider.isLoaded ? settingsProvider.themeMode : ThemeMode.dark,
             routerConfig: _router,
           );
         },
@@ -59,7 +87,7 @@ final GoRouter _router = GoRouter(
     
     // Protected routes that require authentication
     final protectedRoutes = ['/profile'];
-    final publicRoutes = ['/', '/home', '/signin', '/search', '/bookmarks', '/admin'];
+    final publicRoutes = ['/', '/home', '/signin', '/search', '/bookmarks', '/settings'];
     
     // Check if current route is protected
     final isProtectedRoute = protectedRoutes.any((route) => 
@@ -107,8 +135,8 @@ final GoRouter _router = GoRouter(
       builder: (context, state) => const BookmarksScreen(),
     ),
     GoRoute(
-      path: '/admin',
-      builder: (context, state) => const AdminPanelScreen(),
+      path: '/settings',
+      builder: (context, state) => const SettingsScreen(),
     ),
     GoRoute(
       path: '/news/:id',

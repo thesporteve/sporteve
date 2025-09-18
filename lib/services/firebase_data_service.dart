@@ -4,7 +4,7 @@ import '../models/match.dart';
 import 'firebase_service.dart';
 
 /// Data service for handling news articles and matches
-/// Uses Firestore when available, falls back to mock data
+/// Uses Firestore when available, falls back to sample data
 class FirebaseDataService {
   static FirebaseDataService? _instance;
   static FirebaseDataService get instance => _instance ??= FirebaseDataService._();
@@ -17,7 +17,7 @@ class FirebaseDataService {
   Future<List<NewsArticle>> getNewsArticles() async {
     try {
       if (!_firebaseService.isFirebaseAvailable) {
-        return _getMockNewsArticles();
+        return _getSampleNewsArticles();
       }
 
       // Try to fetch from Firestore
@@ -35,12 +35,12 @@ class FirebaseDataService {
         
         return articles;
       } else {
-        // No articles in Firestore, return mock data
-        return _getMockNewsArticles();
+        // No articles in Firestore, return sample data
+        return _getSampleNewsArticles();
       }
     } catch (e) {
       print('Failed to fetch news articles from Firestore: $e');
-      return _getMockNewsArticles();
+      return _getSampleNewsArticles();
     }
   }
 
@@ -48,7 +48,7 @@ class FirebaseDataService {
   Future<List<Match>> getMatches() async {
     try {
       if (!_firebaseService.isFirebaseAvailable) {
-        return _getMockMatches();
+        return _getSampleMatches();
       }
 
       // Try to fetch from Firestore
@@ -66,20 +66,20 @@ class FirebaseDataService {
         
         return matches;
       } else {
-        // No matches in Firestore, return mock data
-        return _getMockMatches();
+        // No matches in Firestore, return sample data
+        return _getSampleMatches();
       }
     } catch (e) {
       print('Failed to fetch matches from Firestore: $e');
-      return _getMockMatches();
+      return _getSampleMatches();
     }
   }
 
-  /// Search news articles from Firestore or mock data
+  /// Search news articles from Firestore or sample data
   Future<List<NewsArticle>> searchNews(String query) async {
     try {
       if (!_firebaseService.isFirebaseAvailable) {
-        return _searchMockData(query);
+        return _searchSampleData(query);
       }
 
       if (query.isEmpty) {
@@ -113,17 +113,17 @@ class FirebaseDataService {
         // Limit search results to 20 for better performance
         return searchResults.take(20).toList();
       } else {
-        return _searchMockData(query);
+        return _searchSampleData(query);
       }
     } catch (e) {
       print('Failed to search news articles in Firestore: $e');
-      return _searchMockData(query);
+      return _searchSampleData(query);
     }
   }
 
-  /// Search mock data (fallback method)
-  List<NewsArticle> _searchMockData(String query) {
-    final articles = _getMockNewsArticles();
+  /// Search sample data (fallback method)
+  List<NewsArticle> _searchSampleData(String query) {
+    final articles = _getSampleNewsArticles();
     if (query.isEmpty) return articles;
     
     final searchResults = articles.where((article) {
@@ -143,7 +143,7 @@ class FirebaseDataService {
   Future<NewsArticle?> getArticleById(String id) async {
     try {
       if (!_firebaseService.isFirebaseAvailable) {
-        final articles = _getMockNewsArticles();
+        final articles = _getSampleNewsArticles();
         final matches = articles.where((article) => article.id == id).toList();
         return matches.isEmpty ? null : matches.first;
       }
@@ -159,20 +159,20 @@ class FirebaseDataService {
         return NewsArticle.fromFirestore(doc.id, data);
       } else {
         // Article not found in Firestore, check mock data
-        final articles = _getMockNewsArticles();
+        final articles = _getSampleNewsArticles();
         final matches = articles.where((article) => article.id == id).toList();
         return matches.isEmpty ? null : matches.first;
       }
     } catch (e) {
       print('Failed to fetch article by ID from Firestore: $e');
-      final articles = _getMockNewsArticles();
+      final articles = _getSampleNewsArticles();
       final matches = articles.where((article) => article.id == id).toList();
       return matches.isEmpty ? null : matches.first;
     }
   }
 
-  /// Mock news articles data
-  List<NewsArticle> _getMockNewsArticles() {
+  /// Sample news articles data
+  List<NewsArticle> _getSampleNewsArticles() {
     return [
       NewsArticle(
         id: '1',
@@ -185,7 +185,6 @@ class FirebaseDataService {
         source: 'ESPN',
         sourceUrl: 'https://twitter.com/espn/status/1234567890',
         imageUrl: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800',
-        // tags and readTime removed per user request
       ),
       NewsArticle(
         id: '2',
@@ -198,7 +197,6 @@ class FirebaseDataService {
         source: 'NBA.com',
         sourceUrl: 'https://www.nba.com/lakers/news/game-recap-2024',
         imageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800',
-        // tags and readTime removed per user request
       ),
       NewsArticle(
         id: '3',
@@ -211,13 +209,12 @@ class FirebaseDataService {
         source: 'Tennis.com',
         sourceUrl: 'https://www.tennis.com/news/djokovic-semifinals-2024',
         imageUrl: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=800',
-        // tags and readTime removed per user request
       ),
     ];
   }
 
-  /// Mock matches data
-  List<Match> _getMockMatches() {
+  /// Sample matches data
+  List<Match> _getSampleMatches() {
     return [
       Match(
         id: '1',

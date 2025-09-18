@@ -1,4 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_service.dart';
 
@@ -20,12 +21,28 @@ class NotificationService {
       // Setup message handlers
       await _setupMessageHandlers();
       
+      // Get and log FCM token for testing
+      await getFCMToken();
+      
       // Subscribe to default topics
       await _subscribeToDefaultTopics();
       
-      print('Notification service initialized');
+      print('Notification service initialized successfully');
     } catch (e) {
       print('Failed to initialize notification service: $e');
+    }
+  }
+
+  /// Public method to get FCM token (for testing purposes)
+  Future<String?> getFCMToken() async {
+    try {
+      final token = await _firebaseService.messaging.getToken();
+      print('🔥 FCM Token: $token');
+      print('📱 Use this token to send test notifications from Firebase Console');
+      return token;
+    } catch (e) {
+      print('Failed to get FCM token: $e');
+      return null;
     }
   }
 
@@ -182,15 +199,6 @@ class NotificationService {
     }
   }
 
-  /// Get FCM token
-  Future<String?> getFCMToken() async {
-    try {
-      return await _firebaseService.messaging.getToken();
-    } catch (e) {
-      print('Failed to get FCM token: $e');
-      return null;
-    }
-  }
 
   /// Update user notification preferences
   Future<void> updateNotificationPreferences({

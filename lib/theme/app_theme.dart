@@ -17,11 +17,13 @@ class AppTheme {
   static const Color successColor = Color(0xFF059669);    // Emerald green
   static const Color warningColor = naplesYellow;
   
-  // Light Theme Colors
-  static const Color lightBackground = beige;
-  static const Color lightSurface = Color(0xFFF8F8F0);    // Slightly warmer white
-  static const Color lightOnSurface = yaleBlue;
-  static const Color lightOnBackground = Color(0xFF2D3748);
+  // Light Theme Colors - Modern & Clean
+  static const Color lightBackground = Color(0xFFFAFAFA);      // Clean light gray
+  static const Color lightSurface = Color(0xFFFFFFFF);         // Pure white
+  static const Color lightOnSurface = Color(0xFF1A202C);       // Soft dark gray
+  static const Color lightOnBackground = Color(0xFF2D3748);    // Medium gray
+  static const Color lightPrimary = Color(0xFF2563EB);         // Modern blue (lighter than yale)
+  static const Color lightSecondary = Color(0xFFEA580C);       // Vibrant orange
   
   // Dark Theme Colors  
   static const Color darkBackground = Color(0xFF0A1929);   // Very dark blue
@@ -34,14 +36,18 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: const ColorScheme.light(
-        primary: primaryColor,
-        secondary: secondaryColor,
+        primary: lightPrimary,
+        secondary: lightSecondary,
         tertiary: accentColor,
         error: errorColor,
         background: lightBackground,
         surface: lightSurface,
         onBackground: lightOnBackground,
         onSurface: lightOnSurface,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        outline: Color(0xFFE5E7EB),
+        shadow: Color(0xFF000000),
       ),
       textTheme: GoogleFonts.interTextTheme().copyWith(
         displayLarge: GoogleFonts.inter(
@@ -118,17 +124,18 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         color: lightSurface,
-        elevation: 3,
-        shadowColor: yaleBlue.withOpacity(0.15),
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.08),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          foregroundColor: beige,
-          elevation: 3,
+          backgroundColor: lightPrimary,
+          foregroundColor: Colors.white,
+          elevation: 2,
+          shadowColor: lightPrimary.withOpacity(0.3),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

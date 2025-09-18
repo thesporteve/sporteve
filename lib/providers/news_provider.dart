@@ -8,6 +8,7 @@ import '../services/tournament_service.dart';
 
 class NewsProvider with ChangeNotifier {
   List<NewsArticle> _articles = [];
+  List<NewsArticle> _originalArticles = []; // Cache original articles
   List<Match> _upcomingMatches = [];
   List<Match> _liveMatches = [];
   List<Tournament> _liveTournaments = [];
@@ -17,6 +18,8 @@ class NewsProvider with ChangeNotifier {
   String _selectedCategory = 'all';
   String? _selectedTournamentId;
   String _searchQuery = '';
+  DateTime? _lastLoadTime; // Track when articles were last loaded
+  static const Duration _cacheValidDuration = Duration(minutes: 5); // Cache for 5 minutes
 
   // Getters
   List<NewsArticle> get articles => _articles;
@@ -64,14 +67,27 @@ class NewsProvider with ChangeNotifier {
   }
 
   // Methods
-  Future<void> loadNews() async {
+  Future<void> loadNews({bool forceRefresh = false}) async {
+    // Check if we have cached data that's still valid
+    if (!forceRefresh && _originalArticles.isNotEmpty && _lastLoadTime != null) {
+      final cacheAge = DateTime.now().difference(_lastLoadTime!);
+      if (cacheAge < _cacheValidDuration) {
+        print('Using cached articles (${_originalArticles.length} articles, age: ${cacheAge.inMinutes}m)');
+        _articles = List.from(_originalArticles);
+        notifyListeners();
+        return;
+      }
+    }
+
     _setLoading(true);
     _clearError();
 
     try {
       // Load news articles first
       _articles = await FirebaseDataService.instance.getNewsArticles();
-      print('Loaded ${_articles.length} articles from Firestore');
+      _originalArticles = List.from(_articles); // Cache the original articles
+      _lastLoadTime = DateTime.now();
+      print('Loaded ${_articles.length} articles from Firestore (fresh)');
       
       // Load live tournaments
       try {
@@ -172,12 +188,16 @@ class NewsProvider with ChangeNotifier {
 
   void clearSearch() {
     _searchQuery = '';
+    // Don't reload - just restore from cache if available
+    if (_originalArticles.isNotEmpty) {
+      _articles = List.from(_originalArticles);
+      print('Restored ${_articles.length} articles from cache');
+    }
     notifyListeners();
-    loadNews();
   }
 
   void refresh() {
-    loadNews();
+    loadNews(forceRefresh: true);
     loadMatches();
   }
 

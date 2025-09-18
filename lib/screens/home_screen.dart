@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/news_provider.dart';
+import '../providers/settings_provider.dart';
 import '../models/news_article.dart';
 import '../models/user.dart';
 import '../widgets/news_page_card.dart';
@@ -53,8 +54,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
-        child: Consumer<NewsProvider>(
-          builder: (context, newsProvider, child) {
+        child: Consumer2<NewsProvider, SettingsProvider>(
+          builder: (context, newsProvider, settingsProvider, child) {
             if (newsProvider.isLoading) {
               return Center(
                 child: CircularProgressIndicator(
@@ -103,7 +104,17 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }
 
-            final articles = newsProvider.filteredArticles;
+            // Apply sports filtering based on user preferences
+            final articles = newsProvider.filteredArticles.where((article) {
+              // If settings aren't loaded yet, show all articles
+              if (!settingsProvider.isLoaded) return true;
+              
+              // If no sports preferences selected, show all articles
+              if (settingsProvider.showAllSports) return true;
+              
+              // Filter by selected sports
+              return settingsProvider.shouldShowSport(article.category);
+            }).toList();
             if (articles.isEmpty) {
               return Center(
                 child: Column(
@@ -124,13 +135,73 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 8),
                     Text(
                       newsProvider.selectedTournamentId != null
-                          ? 'No articles for this tournament\nTap "Show All" above to see all news'
-                          : 'Try adjusting your category filter',
+                          ? 'No articles available for this tournament'
+                          : !settingsProvider.showAllSports
+                              ? 'No news found for your selected sports'
+                              : 'No articles available right now',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
                       ),
                       textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: 24),
+                    // Action buttons based on the type of empty state
+                    if (newsProvider.selectedTournamentId != null)
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          newsProvider.clearTournamentFilter();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        ),
+                        icon: const Icon(Icons.clear_all, size: 18),
+                        label: const Text('Show All News'),
+                      )
+                    else if (!settingsProvider.showAllSports)
+                      Column(
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              context.push('/settings');
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            ),
+                            icon: const Icon(Icons.settings, size: 18),
+                            label: const Text('Adjust Sports Preferences'),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () {
+                              settingsProvider.clearSportsPreferences();
+                            },
+                            child: Text(
+                              'Show all sports news',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await newsProvider.loadNews();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        ),
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Refresh'),
+                      ),
                   ],
                 ),
               );
@@ -140,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 // Tournament Filter Chips (always show if filter is active OR tournaments exist)
                 if (newsProvider.selectedTournamentId != null || newsProvider.liveTournaments.isNotEmpty)
-                  _buildTournamentFilterChips(context, newsProvider),
+                  _buildTournamentFilterChips(context, newsProvider, settingsProvider),
                 
                 // News Pages (Vertical PageView)
                 Expanded(
@@ -183,13 +254,28 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTournamentFilterChips(BuildContext context, NewsProvider newsProvider) {
+  Widget _buildTournamentFilterChips(BuildContext context, NewsProvider newsProvider, SettingsProvider settingsProvider) {
+    // Filter tournaments based on user's sports preferences
+    final filteredTournaments = newsProvider.liveTournaments.where((tournament) {
+      // If settings aren't loaded, show all tournaments
+      if (!settingsProvider.isLoaded) return true;
+      
+      // If no sports preferences selected, show all tournaments  
+      if (settingsProvider.showAllSports) return true;
+      
+      // Show tournaments that match user's selected sports
+      // Handle 'all' sportType for multi-sport tournaments
+      if (tournament.sportType.toLowerCase() == 'all') return true;
+      
+      return settingsProvider.shouldShowSport(tournament.sportType);
+    }).toList();
+    
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: newsProvider.liveTournaments.length + 1, // +1 for "Show All" chip
+        itemCount: filteredTournaments.length + 1, // +1 for "Show All" chip
         itemBuilder: (context, index) {
           if (index == 0) {
             // "Show All" chip to clear filter
@@ -228,11 +314,11 @@ class _HomeScreenState extends State<HomeScreen> {
           }
           
           // Check if we have tournaments before accessing the array
-          if (index - 1 >= newsProvider.liveTournaments.length) {
+          if (index - 1 >= filteredTournaments.length) {
             return const SizedBox.shrink();
           }
           
-          final tournament = newsProvider.liveTournaments[index - 1];
+          final tournament = filteredTournaments[index - 1];
           final isSelected = newsProvider.selectedTournamentId == tournament.id;
           
           return Padding(
@@ -295,8 +381,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildNavItem(Icons.bookmark, 'Bookmarks', false, () {
             context.push('/bookmarks');
           }),
-          _buildNavItem(Icons.settings, 'Admin', false, () {
-            _checkAdminAccess();
+          _buildNavItem(Icons.settings, 'Settings', false, () {
+            context.push('/settings');
           }),
         ],
       ),
@@ -304,243 +390,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildNavItem(IconData icon, String label, bool isSelected, VoidCallback onTap) {
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-            size: 24,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
               color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              fontSize: 12,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              size: 24,
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Future<void> _checkAdminAccess() async {
-    final prefs = await SharedPreferences.getInstance();
-    final bool hasAdminAccess = prefs.getBool('admin_access_granted') ?? false;
-    
-    if (hasAdminAccess) {
-      // Already granted access, navigate directly
-      context.go('/admin');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Welcome back, Admin!'),
-          backgroundColor: Colors.green[600],
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } else {
-      // Show admin access dialog
-      _showAdminAccessDialog();
-    }
-  }
-
-  void _showAdminAccessDialog() {
-    final TextEditingController adminCodeController = TextEditingController();
-    bool isLoading = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Container(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20),
-                  ),
-                ),
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.admin_panel_settings,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 28,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Admin Access Required',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Description
-                    Text(
-                      'This area is restricted to administrators only. Please enter the admin code to continue.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Admin Code Input
-                    TextField(
-                      controller: adminCodeController,
-                      obscureText: true,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: 'Admin Code',
-                        hintText: 'Enter admin access code',
-                        prefixIcon: Icon(
-                          Icons.lock_outline,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                      onSubmitted: (value) {
-                        _validateAdminCode(adminCodeController.text, context, setState);
-                      },
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: isLoading ? null : () {
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Cancel'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: isLoading ? null : () {
-                              _validateAdminCode(adminCodeController.text, context, setState);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.primary,
-                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: isLoading
-                                ? SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Theme.of(context).colorScheme.onPrimary,
-                                      ),
-                                    ),
-                                  )
-                                : const Text('Access Panel'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _validateAdminCode(String enteredCode, BuildContext context, StateSetter setState) async {
-    const String correctAdminCode = 'sporteveadmin';
-    
-    setState(() {
-      // isLoading = true; // We could add loading state if needed
-    });
-
-    // Simulate slight delay for better UX
-    await Future.delayed(const Duration(milliseconds: 300));
-    
-    if (enteredCode.trim() == correctAdminCode) {
-      // Store admin access for future use
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('admin_access_granted', true);
-      
-      // Correct code - close dialog and navigate to admin panel
-      if (mounted) {
-        Navigator.of(context).pop();
-        context.go('/admin');
-        
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Welcome, Admin! Access granted and remembered.'),
-            backgroundColor: Colors.green[600],
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } else {
-      // Incorrect code - show error
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Incorrect admin code. Access denied.'),
-            backgroundColor: Colors.red[600],
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-        
-        setState(() {
-          // isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _clearAdminAccess() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('admin_access_granted');
-  }
 }
