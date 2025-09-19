@@ -6,7 +6,12 @@ import '../theme/admin_theme.dart';
 import 'admin_news_screen.dart';
 import 'admin_tournaments_screen.dart';
 import 'admin_athletes_screen.dart';
+import 'admin_sports_wiki_screen.dart';
+import 'admin_content_generation_screen.dart';
+import 'admin_content_review_screen.dart';
+import 'admin_content_management_screen.dart';
 import 'admin_management_screen.dart';
+import 'admin_more_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -38,15 +43,84 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         label: 'Athletes',
         screen: const AdminAthletesScreen(),
       ),
-      // Only show admin management for super admins
-      if (authProvider.isSuperAdmin)
+      AdminNavigationItem(
+        icon: Icons.library_books_outlined,
+        selectedIcon: Icons.library_books,
+        label: 'Sports Wiki',
+        screen: const AdminSportsWikiScreen(),
+      ),
+      // Only show AI content features for super admins
+      if (authProvider.isSuperAdmin) ...[
+        AdminNavigationItem(
+          icon: Icons.auto_awesome_outlined,
+          selectedIcon: Icons.auto_awesome,
+          label: 'AI Content',
+          screen: const AdminContentGenerationScreen(),
+        ),
+        AdminNavigationItem(
+          icon: Icons.rate_review_outlined,
+          selectedIcon: Icons.rate_review,
+          label: 'Review Content',
+          screen: const AdminContentReviewScreen(),
+        ),
+        AdminNavigationItem(
+          icon: Icons.dashboard_outlined,
+          selectedIcon: Icons.dashboard,
+          label: 'Content Hub',
+          screen: const AdminContentManagementScreen(),
+        ),
         AdminNavigationItem(
           icon: Icons.admin_panel_settings_outlined,
           selectedIcon: Icons.admin_panel_settings,
           label: 'Admin Management',
           screen: const AdminManagementScreen(),
         ),
+      ],
     ];
+  }
+
+  // Get mobile-friendly navigation items (max 5 for BottomNavigationBar)
+  List<AdminNavigationItem> _getMobileNavigationItems(AdminAuthProvider authProvider) {
+    final baseItems = [
+      AdminNavigationItem(
+        icon: Icons.article_outlined,
+        selectedIcon: Icons.article,
+        label: 'News',
+        screen: const AdminNewsScreen(),
+      ),
+      AdminNavigationItem(
+        icon: Icons.emoji_events_outlined,
+        selectedIcon: Icons.emoji_events,
+        label: 'Events',
+        screen: const AdminTournamentsScreen(),
+      ),
+      AdminNavigationItem(
+        icon: Icons.sports_outlined,
+        selectedIcon: Icons.sports,
+        label: 'Athletes',
+        screen: const AdminAthletesScreen(),
+      ),
+      AdminNavigationItem(
+        icon: Icons.library_books_outlined,
+        selectedIcon: Icons.library_books,
+        label: 'Wiki',
+        screen: const AdminSportsWikiScreen(),
+      ),
+    ];
+
+    // For super admins, add a combined AI/Admin item that leads to a submenu
+    if (authProvider.isSuperAdmin) {
+      baseItems.add(
+        AdminNavigationItem(
+          icon: Icons.more_horiz_outlined,
+          selectedIcon: Icons.more_horiz,
+          label: 'More',
+          screen: const AdminMoreScreen(),
+        ),
+      );
+    }
+
+    return baseItems;
   }
 
   void _onItemTapped(int index) {
@@ -58,7 +132,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AdminAuthProvider>(context);
-    final navigationItems = _getNavigationItems(authProvider);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth <= 600;
+    
+    final navigationItems = isMobile 
+        ? _getMobileNavigationItems(authProvider)
+        : _getNavigationItems(authProvider);
     
     return ResponsiveLayout(
       selectedIndex: _selectedIndex,

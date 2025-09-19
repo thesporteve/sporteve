@@ -162,4 +162,21 @@ class AdminTheme {
     fontSize: 12,
     color: Colors.grey,
   );
+
+  // Additional text styles for sports wiki
+  static const TextStyle headlineMedium = TextStyle(
+    fontSize: 22,
+    fontWeight: FontWeight.bold,
+    color: primaryColor,
+  );
+
+  static const TextStyle titleSmall = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+  );
+
+  static const TextStyle bodySmall = TextStyle(
+    fontSize: 12,
+    color: Colors.grey,
+  );
 }

@@ -32,5 +32,23 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if true;
     }
+    
+    // Sports Wiki - Allow admin CRUD operations and public read access
+    match /sports_wiki/{wikiId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+    
+    // Content Feeds - Allow admin CRUD operations and public read access for published content
+    match /content_feeds/{feedId} {
+      allow read: if true; // Mobile app needs to read published content
+      allow create, update, delete: if true; // Admin operations
+    }
+    
+    // Content Generation Requests - Allow admin CRUD operations
+    match /content_generation_requests/{requestId} {
+      allow read: if true; // Admins can view all requests
+      allow create, update, delete: if true; // Admin operations
+    }
   }
 }

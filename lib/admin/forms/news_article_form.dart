@@ -61,6 +61,7 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
     'kabaddi',
     'karate',
     'kayaking',
+    'kho_kho',
     'long_jump',
     'marathon',
     'pole_vault',
@@ -75,7 +76,9 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
     'skating',
     'skiing',
     'soccer',
+    'soft_tennis',
     'sprint',
+    'sepak_takraw',
     'swimming',
     'taekwondo',
     'tennis',
@@ -84,6 +87,41 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
     'weightlifting',
     'wrestling',
   ];
+
+  // Helper method to convert category code to display name
+  String _getCategoryDisplayName(String category) {
+    switch (category) {
+      case 'discus_throw':
+        return 'Discus Throw';
+      case 'hammer_throw':
+        return 'Hammer Throw';
+      case 'high_jump':
+        return 'High Jump';
+      case 'javelin_throw':
+        return 'Javelin Throw';
+      case 'long_jump':
+        return 'Long Jump';
+      case 'pole_vault':
+        return 'Pole Vault';
+      case 'race_walking':
+        return 'Race Walking';
+      case 'shot_put':
+        return 'Shot Put';
+      case 'triple_jump':
+        return 'Triple Jump';
+      case 'soft_tennis':
+        return 'Soft Tennis';
+      case 'sepak_takraw':
+        return 'Sepak Takraw';
+      case 'kho_kho':
+        return 'Kho-Kho';
+      default:
+        // Convert other underscore categories to proper case
+        return category.split('_')
+            .map((word) => word[0].toUpperCase() + word.substring(1))
+            .join(' ');
+    }
+  }
 
   @override
   void initState() {
@@ -104,11 +142,13 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
       final athletes = await dataService.getAthleteOptions();
       final authors = await authProvider.getActiveAdmins();
       
-      setState(() {
-        _tournaments = tournaments;
-        _athletes = athletes;
-        _availableAuthors = authors;
-      });
+      if (mounted) {
+        setState(() {
+          _tournaments = tournaments;
+          _athletes = athletes;
+          _availableAuthors = authors;
+        });
+      }
     } catch (e) {
       print('Error loading options: $e');
     }
@@ -222,6 +262,71 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
 
   // Test notification method removed - notifications now work automatically via article creation
 
+  // Helper method to get a valid author value for the dropdown
+  String? _getValidAuthorValue() {
+    if (_authorController.text.isEmpty || _availableAuthors.isEmpty) {
+      return null;
+    }
+    
+    final currentAuthor = _authorController.text;
+    
+    // First, try to find exact match with display name
+    final exactMatch = _availableAuthors.firstWhere(
+      (admin) => admin['displayName'] == currentAuthor,
+      orElse: () => {},
+    );
+    
+    if (exactMatch.isNotEmpty) {
+      return exactMatch['displayName'];
+    }
+    
+    // Second, try to find match by partial name (e.g., "Karteek" matches "Karteek Joshi")
+    final partialMatch = _availableAuthors.firstWhere(
+      (admin) => (admin['displayName'] as String).toLowerCase().contains(currentAuthor.toLowerCase()) ||
+                 (admin['username'] as String).toLowerCase() == currentAuthor.toLowerCase(),
+      orElse: () => {},
+    );
+    
+    if (partialMatch.isNotEmpty) {
+      // Update the controller to use the full display name
+      _authorController.text = partialMatch['displayName'];
+      return partialMatch['displayName'];
+    }
+    
+    // If no match found, return null to show placeholder
+    // This handles legacy data gracefully
+    return null;
+  }
+  
+  // Get dropdown items including legacy author if not in current admin list
+  List<DropdownMenuItem<String>> _getAuthorDropdownItems() {
+    final items = _availableAuthors.map((author) {
+      return DropdownMenuItem<String>(
+        value: author['displayName'],
+        child: Text('${author['displayName']} (${author['username']})'),
+      );
+    }).toList();
+    
+    // If current author doesn't match any admin, add it as a legacy option
+    if (_authorController.text.isNotEmpty) {
+      final currentAuthor = _authorController.text;
+      final hasMatch = _availableAuthors.any((admin) => 
+        admin['displayName'] == currentAuthor ||
+        (admin['displayName'] as String).toLowerCase().contains(currentAuthor.toLowerCase()) ||
+        (admin['username'] as String).toLowerCase() == currentAuthor.toLowerCase()
+      );
+      
+      if (!hasMatch) {
+        items.insert(0, DropdownMenuItem<String>(
+          value: currentAuthor,
+          child: Text('$currentAuthor (Legacy Author)'),
+        ));
+      }
+    }
+    
+    return items;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -329,17 +434,12 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
                   Expanded(
                     child: _availableAuthors.isNotEmpty 
                         ? DropdownButtonFormField<String>(
-                            value: _authorController.text.isEmpty ? null : _authorController.text,
+                            value: _getValidAuthorValue() ?? (_authorController.text.isNotEmpty ? _authorController.text : null),
                             decoration: const InputDecoration(
                               labelText: 'Author *',
                               hintText: 'Select author',
                             ),
-                            items: _availableAuthors.map((author) {
-                              return DropdownMenuItem<String>(
-                                value: author['displayName'],
-                                child: Text('${author['displayName']} (${author['username']})'),
-                              );
-                            }).toList(),
+                            items: _getAuthorDropdownItems(),
                             onChanged: (value) {
                               setState(() {
                                 _authorController.text = value ?? '';
@@ -376,7 +476,7 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
                       items: _categories.map((category) {
                         return DropdownMenuItem<String>(
                           value: category,
-                          child: Text(category.toUpperCase()),
+                          child: Text(_getCategoryDisplayName(category)),
                         );
                       }).toList(),
                       onChanged: (value) {
@@ -534,38 +634,7 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
               ),
               const SizedBox(height: 16),
 
-              // Breaking News Toggle
-              Card(
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Notification Options',
-                        style: AdminTheme.titleMedium.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Breaking News feature disabled per requirement
-                      // SwitchListTile(
-                      //   title: const Text('Breaking News'),
-                      //   subtitle: const Text('Send as high-priority notification to all users'),
-                      //   value: _isBreaking,
-                      //   onChanged: (value) {
-                      //     setState(() {
-                      //       _isBreaking = value;
-                      //     });
-                      //   },
-                      //   activeColor: AdminTheme.primaryColor,
-                      // ),
-                      // Test notification button removed - real notifications work via article creation flow
-                    ],
-                  ),
-                ),
-              ),
+              // Notification Options card removed - notifications now work automatically via Cloud Functions
               
               const SizedBox(height: 24),
 

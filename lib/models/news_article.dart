@@ -46,9 +46,7 @@ class NewsArticle {
       summary: json['summary'] ?? json['description'] ?? '',
       content: json['content'] ?? '',
       author: json['author'] ?? '',
-      publishedAt: json['publishedAt'] is DateTime 
-          ? json['publishedAt'] 
-          : DateTime.parse(json['publishedAt'] ?? DateTime.now().toIso8601String()),
+      publishedAt: _parseTimestamp(json['publishedAt']),
       imageUrl: json['imageUrl'],
       category: json['category'] ?? '',
       source: json['source'] ?? '',
@@ -70,9 +68,7 @@ class NewsArticle {
       summary: data['summary'] ?? data['description'] ?? '',
       content: data['content'] ?? '',
       author: data['author'] ?? '',
-      publishedAt: data['publishedAt'] is DateTime 
-          ? data['publishedAt'] 
-          : (data['publishedAt'] as Timestamp).toDate(),
+      publishedAt: _parseTimestamp(data['publishedAt']),
       imageUrl: data['imageUrl'] ?? data['image_url'],
       category: data['category'] ?? '',
       source: data['source'] ?? '',
@@ -107,6 +103,27 @@ class NewsArticle {
       'tournamentId': tournamentId,
       'athleteId': athleteId,
     };
+  }
+
+  // Helper method to parse different timestamp formats from Firestore
+  static DateTime _parseTimestamp(dynamic timestamp) {
+    if (timestamp == null) return DateTime.now();
+    
+    if (timestamp is DateTime) {
+      return timestamp;
+    } else if (timestamp is Timestamp) {
+      return timestamp.toDate();
+    } else if (timestamp is String) {
+      try {
+        return DateTime.parse(timestamp);
+      } catch (e) {
+        print('Error parsing timestamp string: $timestamp, using current time');
+        return DateTime.now();
+      }
+    } else {
+      print('Unknown timestamp type: ${timestamp.runtimeType}, using current time');
+      return DateTime.now();
+    }
   }
 
   NewsArticle copyWith({
