@@ -45,7 +45,7 @@ dependencies:
   firebase_core_web: ^2.13.0
   firebase_auth_web: ^5.11.5
   firebase_storage: ^11.7.0
-  file_picker: ^6.0.0
+  file_picker: ^8.0.0+1
   cloud_functions: ^4.7.6
   
   # Local Storage
@@ -60,6 +60,10 @@ dependencies:
   
   # Image generation
   widgets_to_image: ^1.0.0
+  
+  # Device and app info for feedback
+  device_info_plus: ^9.1.0
+  package_info_plus: ^4.2.0
   
   # Password hashing (for admin auth)
   crypto: ^3.0.3

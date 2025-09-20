@@ -50,5 +50,16 @@ service cloud.firestore {
       allow read: if true; // Admins can view all requests
       allow create, update, delete: if true; // Admin operations
     }
+    
+    // User Feedback - Allow users to create and read their own feedback
+    match /user_feedback/{feedbackId} {
+      allow create: if request.auth != null; // Users can create feedback
+      allow read: if true; // Allow reading for analytics
+    }
+    
+    // Users collection - Allow users to update their own feedback tracking
+    match /users/{userId} {
+      allow read, write: if true; // Open for now
+    }
   }
 }

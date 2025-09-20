@@ -54,6 +54,7 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
     'football',
     'golf',
     'hammer_throw',
+    'handball',
     'high_jump',
     'hockey',
     'javelin_throw',

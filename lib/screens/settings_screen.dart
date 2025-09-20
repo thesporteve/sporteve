@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/settings_provider.dart';
+import 'feedback_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -48,6 +49,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         
                         _buildSectionTitle('News Preferences'),
                         _buildSportsPreferencesSection(settings),
+                        
+                        const SizedBox(height: 32),
+                        
+                        _buildSectionTitle('Feedback'),
+                        _buildFeedbackSection(),
                         
                         const SizedBox(height: 32),
                         
@@ -377,6 +383,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeedbackSection() {
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: Icon(
+              Icons.feedback,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            title: const Text('Share Feedback'),
+            subtitle: const Text('Help us improve SportEve'),
+            trailing: Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+            ),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const FeedbackScreen(),
+                ),
+              );
+            },
+          ),
+          // Rate Our App - Hidden until Play Store release
+          // const Divider(height: 1),
+          // ListTile(
+          //   leading: Icon(
+          //     Icons.rate_review,
+          //     color: Theme.of(context).colorScheme.primary,
+          //   ),
+          //   title: const Text('Rate Our App'),
+          //   subtitle: const Text('Love SportEve? Rate us on Play Store!'),
+          //   trailing: Icon(
+          //     Icons.arrow_forward_ios,
+          //     size: 16,
+          //     color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+          //   ),
+          //   onTap: () {
+          //     // TODO: Implement app store rating when published
+          //     ScaffoldMessenger.of(context).showSnackBar(
+          //       const SnackBar(
+          //         content: Text('Opening Play Store...'),
+          //         duration: Duration(seconds: 2),
+          //       ),
+          //     );
+          //   },
+          // ),
         ],
       ),
     );

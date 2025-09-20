@@ -1,0 +1,44 @@
+// Add these rules to your existing firestore.rules file
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Existing rules for other collections...
+    
+    // User feedback collection
+    match /user_feedback/{feedbackId} {
+      // Users can create their own feedback
+      allow create: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+      
+      // Users can read their own feedback
+      allow read: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+      
+      // Admins can read all feedback (add your admin UIDs here)
+      allow read: if request.auth != null 
+        && request.auth.uid in [
+          'your-admin-uid-1',
+          'your-admin-uid-2'
+        ];
+      
+      // No updates or deletes allowed for feedback
+      allow update, delete: if false;
+    }
+    
+    // Update user document to include feedback tracking
+    match /users/{userId} {
+      // Existing user rules...
+      
+      // Allow users to update their own feedback tracking fields
+      allow update: if request.auth != null 
+        && request.auth.uid == userId
+        && request.writeFields.hasOnly([
+          'lastFeedbackDate', 
+          'feedbackCount', 
+          'lastFeedbackPromptDismissed'
+        ]);
+    }
+  }
+}

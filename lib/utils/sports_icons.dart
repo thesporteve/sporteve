@@ -6,6 +6,7 @@ class SportsIcons {
     'cricket': Icons.sports_cricket,
     'football': Icons.sports_soccer,
     'soccer': Icons.sports_soccer,
+    'handball': Icons.sports_handball,
     'hockey': Icons.sports_hockey,
     'basketball': Icons.sports_basketball,
     'volleyball': Icons.sports_volleyball,
