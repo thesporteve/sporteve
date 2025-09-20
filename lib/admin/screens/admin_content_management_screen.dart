@@ -4,6 +4,7 @@ import '../../models/content_feed.dart';
 import '../services/admin_content_service.dart';
 import '../providers/admin_auth_provider.dart';
 import '../theme/admin_theme.dart';
+import 'content_edit_screen.dart';
 import 'package:intl/intl.dart';
 
 class AdminContentManagementScreen extends StatefulWidget {
@@ -139,6 +140,19 @@ class _AdminContentManagementScreenState extends State<AdminContentManagementScr
         );
       }
     }
+  }
+
+  void _editContent(ContentFeed content) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ContentEditScreen(
+          content: content,
+          onContentUpdated: () {
+            _loadContentData(); // Refresh the list
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _deleteContent(String id, String title) async {
@@ -589,6 +603,18 @@ class _AdminContentManagementScreenState extends State<AdminContentManagementScr
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
                   itemBuilder: (context) => [
+                    // Only show edit option for unpublished content
+                    if (content.status != ContentStatus.published)
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit, size: 18),
+                            SizedBox(width: 8),
+                            Text('Edit'),
+                          ],
+                        ),
+                      ),
                     if (content.status == ContentStatus.approved)
                       const PopupMenuItem(
                         value: 'publish',
@@ -636,6 +662,9 @@ class _AdminContentManagementScreenState extends State<AdminContentManagementScr
                   ],
                   onSelected: (value) {
                     switch (value) {
+                      case 'edit':
+                        _editContent(content);
+                        break;
                       case 'publish':
                         _updateContentStatus(content.id, ContentStatus.published, content.displayTitle);
                         break;

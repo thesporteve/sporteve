@@ -4,6 +4,7 @@ import '../../models/content_feed.dart';
 import '../services/admin_content_service.dart';
 import '../providers/admin_auth_provider.dart';
 import '../theme/admin_theme.dart';
+import 'content_edit_screen.dart';
 import 'package:intl/intl.dart';
 
 class AdminContentReviewScreen extends StatefulWidget {
@@ -199,6 +200,19 @@ class _AdminContentReviewScreenState extends State<AdminContentReviewScreen> {
     }
   }
 
+  void _editContent(ContentFeed content) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ContentEditScreen(
+          content: content,
+          onContentUpdated: () {
+            _loadPendingContent(); // Refresh the list
+          },
+        ),
+      ),
+    );
+  }
+
   void _showContentDetails(ContentFeed content) {
     showDialog(
       context: context,
@@ -230,6 +244,14 @@ class _AdminContentReviewScreenState extends State<AdminContentReviewScreen> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Close'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _editContent(content);
+            },
+            style: TextButton.styleFrom(foregroundColor: AdminTheme.primaryColor),
+            child: const Text('Edit'),
           ),
           TextButton(
             onPressed: () {
@@ -572,6 +594,12 @@ class _AdminContentReviewScreenState extends State<AdminContentReviewScreen> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        IconButton(
+                          onPressed: () => _editContent(content),
+                          icon: const Icon(Icons.edit),
+                          color: AdminTheme.primaryColor,
+                          tooltip: 'Edit Content',
+                        ),
                         IconButton(
                           onPressed: () => _approveContent(content.id, content.displayTitle),
                           icon: const Icon(Icons.check_circle),

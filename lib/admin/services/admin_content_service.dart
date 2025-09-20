@@ -11,7 +11,7 @@ class AdminContentService {
   AdminContentService._internal();
 
   final FirebaseFirestore _firestore = FirebaseService.instance.firestore;
-  final FirebaseFunctions _functions = FirebaseFunctions.instance;
+  final FirebaseFunctions _functions = FirebaseService.instance.functions;
 
   // Collection references
   CollectionReference get _contentFeedsCollection => _firestore.collection('content_feeds');
@@ -131,6 +131,73 @@ class AdminContentService {
     } catch (e) {
       print('Error fetching active generation requests: $e');
       return [];
+    }
+  }
+
+  /// Cancel a pending or processing generation request
+  Future<void> cancelGenerationRequest(String requestId) async {
+    try {
+      await _generationRequestsCollection.doc(requestId).update({
+        'status': 'cancelled',
+        'cancelled_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+      
+      print('✅ Cancelled generation request: $requestId');
+    } catch (e) {
+      print('❌ Error cancelling generation request: $e');
+      throw Exception('Failed to cancel generation request: $e');
+    }
+  }
+
+  /// Delete a generation request (for failed/old requests)
+  Future<void> deleteGenerationRequest(String requestId) async {
+    try {
+      await _generationRequestsCollection.doc(requestId).delete();
+      
+      print('✅ Deleted generation request: $requestId');
+    } catch (e) {
+      print('❌ Error deleting generation request: $e');
+      throw Exception('Failed to delete generation request: $e');
+    }
+  }
+
+  /// Clean up old failed requests (older than 1 hour and still pending/processing)
+  Future<int> cleanupStuckRequests() async {
+    try {
+      final cutoffTime = DateTime.now().subtract(const Duration(hours: 1));
+      
+      // Get stuck requests (pending or processing for more than 1 hour)
+      final stuckSnapshot = await _generationRequestsCollection
+          .where('created_at', isLessThan: Timestamp.fromDate(cutoffTime))
+          .get();
+      
+      int cleanedCount = 0;
+      final batch = _firestore.batch();
+      
+      for (final doc in stuckSnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final status = data['status'] as String?;
+        
+        if (status == 'pending' || status == 'processing') {
+          batch.update(doc.reference, {
+            'status': 'failed',
+            'error_message': 'Request timed out - cleaned up automatically',
+            'updated_at': FieldValue.serverTimestamp(),
+          });
+          cleanedCount++;
+        }
+      }
+      
+      if (cleanedCount > 0) {
+        await batch.commit();
+        print('✅ Cleaned up $cleanedCount stuck requests');
+      }
+      
+      return cleanedCount;
+    } catch (e) {
+      print('❌ Error cleaning up stuck requests: $e');
+      return 0;
     }
   }
 
@@ -466,6 +533,27 @@ class AdminContentService {
         'cricket', 'football', 'basketball', 'tennis', 'badminton', 
         'swimming', 'athletics', 'hockey', 'volleyball', 'kabaddi'
       ];
+    }
+  }
+
+  /// Update content feed with new content data
+  Future<void> updateContentFeedContent(
+    String contentId,
+    Map<String, dynamic> updatedContent,
+    String updatedBy,
+  ) async {
+    try {
+      await _contentFeedsCollection.doc(contentId).update({
+        'content': updatedContent,
+        'updated_by': updatedBy,
+        'updated_at': FieldValue.serverTimestamp(),
+        'last_modified': DateTime.now().toIso8601String(),
+      });
+      
+      print('✅ Content feed updated: $contentId');
+    } catch (e) {
+      print('❌ Error updating content feed: $e');
+      throw Exception('Failed to update content: $e');
     }
   }
 

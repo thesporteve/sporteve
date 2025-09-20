@@ -17,6 +17,20 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
+  bool _isInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Small delay to let the UI render first, then mark as initialized
+    Future.microtask(() {
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -62,6 +76,41 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Show loading screen briefly while initializing
+    if (!_isInitialized) {
+      return Scaffold(
+        backgroundColor: AdminTheme.primaryColor,
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+              SizedBox(height: 24),
+              Text(
+                'SportEve Admin',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Initializing...',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    // Main login screen
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -222,51 +271,6 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                         ),
                         
                         const SizedBox(height: 16),
-                        
-                        // Demo credentials info
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
-                            border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.info_outline,
-                                    color: AdminTheme.primaryColor,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Demo Credentials',
-                                    style: AdminTheme.bodyMedium.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: AdminTheme.primaryColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Admin: admin / sporteve2024',
-                                style: AdminTheme.caption.copyWith(
-                                  fontFamily: 'monospace',
-                                ),
-                              ),
-                              Text(
-                                'Super Admin: super_admin / sporteve_super_2024',
-                                style: AdminTheme.caption.copyWith(
-                                  fontFamily: 'monospace',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ),

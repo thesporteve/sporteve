@@ -28,7 +28,7 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
   // Form state
   String _selectedContentType = 'bulk_trivia';
   String _selectedSport = '';
-  int _quantity = 5;
+  int _quantity = 1;
   String _selectedDifficulty = 'medium';
   String _selectedAgeGroup = '8-16';
   String _selectedSourceType = 'mixed';
@@ -148,6 +148,96 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
     _loadInitialData();
   }
 
+  Future<void> _cancelRequest(String requestId) async {
+    try {
+      await _contentService.cancelGenerationRequest(requestId);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Generation request cancelled'),
+          backgroundColor: AdminTheme.successColor,
+        ),
+      );
+      
+      _loadInitialData(); // Refresh the list
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to cancel request: $e'),
+          backgroundColor: AdminTheme.errorColor,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteRequest(String requestId) async {
+    try {
+      await _contentService.deleteGenerationRequest(requestId);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Generation request deleted'),
+          backgroundColor: AdminTheme.successColor,
+        ),
+      );
+      
+      _loadInitialData(); // Refresh the list
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete request: $e'),
+          backgroundColor: AdminTheme.errorColor,
+        ),
+      );
+    }
+  }
+
+  Future<void> _cleanupStuckRequests() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cleanup Stuck Requests'),
+        content: const Text(
+          'This will mark all pending or processing requests older than 1 hour as failed. Continue?'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: AdminTheme.errorColor),
+            child: const Text('Cleanup'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final cleanedCount = await _contentService.cleanupStuckRequests();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cleaned up $cleanedCount stuck requests'),
+          backgroundColor: AdminTheme.successColor,
+        ),
+      );
+      
+      _loadInitialData(); // Refresh the list
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to cleanup requests: $e'),
+          backgroundColor: AdminTheme.errorColor,
+        ),
+      );
+    }
+  }
+
   Widget _buildQuickGenerationCards() {
     return GridView.count(
       shrinkWrap: true,
@@ -160,26 +250,26 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
         _buildQuickGenerationCard(
           icon: Icons.quiz,
           title: 'Quick Trivia',
-          description: '5 trivia questions\nMixed difficulty',
-          onTap: () => _quickGenerate('bulk_trivia', 5),
+          description: '1 trivia question\nMixed difficulty',
+          onTap: () => _quickGenerate('bulk_trivia', 1),
         ),
         _buildQuickGenerationCard(
           icon: Icons.family_restroom,
           title: 'Parent Tips',
-          description: 'Benefits for kids\nAge-appropriate',
+          description: '1 parenting tip\nAge-appropriate',
           onTap: () => _quickGenerate('single_parent_tip', 1),
         ),
         _buildQuickGenerationCard(
           icon: Icons.lightbulb,
           title: 'Did You Know',
-          description: '3 fascinating facts\nLesser-known trivia',
-          onTap: () => _quickGenerate('sport_facts', 3),
+          description: '1 fascinating fact\nLesser-known trivia',
+          onTap: () => _quickGenerate('sport_facts', 1),
         ),
         _buildQuickGenerationCard(
           icon: Icons.auto_awesome,
-          title: 'Mixed Pack',
-          description: '10 mixed items\nVariety content',
-          onTap: () => _quickGenerate('mixed_content', 10),
+          title: 'Mixed Content',
+          description: '1 random item\nSurprise content',
+          onTap: () => _quickGenerate('mixed_content', 1),
         ),
       ],
     );
@@ -252,7 +342,7 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$quantity ${contentType.replaceAll('_', ' ')} items being generated!'),
+          content: Text('$quantity ${contentType.replaceAll('_', ' ')} ${quantity == 1 ? 'item' : 'items'} being generated!'),
           backgroundColor: AdminTheme.successColor,
         ),
       );
@@ -343,7 +433,7 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
                         ),
                         keyboardType: TextInputType.number,
                         onChanged: (value) {
-                          _quantity = int.tryParse(value) ?? 5;
+                          _quantity = int.tryParse(value) ?? 1;
                         },
                       ),
                       const SizedBox(height: 12),
@@ -544,12 +634,27 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
               children: [
                 const Icon(Icons.pending_actions, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  'Active Generation Requests',
-                  style: AdminTheme.titleMedium.copyWith(
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Text(
+                    'Active Generation Requests',
+                    style: AdminTheme.titleMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
+                
+                // Cleanup button for stuck requests
+                if (_activeRequests.any((r) => r.status == GenerationStatus.pending || r.status == GenerationStatus.processing))
+                  OutlinedButton.icon(
+                    onPressed: _cleanupStuckRequests,
+                    icon: const Icon(Icons.cleaning_services, size: 16),
+                    label: const Text('Cleanup Stuck', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AdminTheme.errorColor,
+                      side: BorderSide(color: AdminTheme.errorColor),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 16),
@@ -638,6 +743,30 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
                 DateFormat('MMM dd, HH:mm').format(request.createdAt),
                 style: AdminTheme.bodySmall.copyWith(color: Colors.grey[600]),
               ),
+              
+              // Action buttons for stuck requests
+              if (request.status == GenerationStatus.pending || request.status == GenerationStatus.processing) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => _cancelRequest(request.id),
+                  icon: const Icon(Icons.cancel, size: 18),
+                  color: Colors.red,
+                  tooltip: 'Cancel Request',
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+              
+              // Delete button for failed requests
+              if (request.status == GenerationStatus.failed) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => _deleteRequest(request.id),
+                  icon: const Icon(Icons.delete, size: 18),
+                  color: Colors.red,
+                  tooltip: 'Delete Request',
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 8),

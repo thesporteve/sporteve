@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../firebase_options.dart';
 
@@ -17,11 +18,13 @@ class FirebaseService {
   FirebaseAuth? _auth;
   FirebaseFirestore? _firestore;
   FirebaseMessaging? _messaging;
+  FirebaseFunctions? _functions;
   
   // Getters
   FirebaseAuth get auth => _auth ?? FirebaseAuth.instance;
   FirebaseFirestore get firestore => _firestore ?? FirebaseFirestore.instance;
   FirebaseMessaging get messaging => _messaging ?? FirebaseMessaging.instance;
+  FirebaseFunctions get functions => _functions ?? FirebaseFunctions.instance;
 
   /// Initialize Firebase
   Future<void> initialize() async {
@@ -36,9 +39,13 @@ class FirebaseService {
       _auth = FirebaseAuth.instance;
       _firestore = FirebaseFirestore.instance;
       _messaging = FirebaseMessaging.instance;
+      
+      // Initialize Firebase Functions with proper region
+      _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
+      
       _initialized = true;
       
-      print('Firebase initialized successfully');
+      print('Firebase initialized successfully with Functions in us-central1');
     } catch (e) {
       print('Firebase initialization failed: $e');
       // Continue with sample data if Firebase fails

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
+import 'services/firebase_service.dart';
 import 'admin/providers/admin_auth_provider.dart';
 import 'admin/screens/admin_login_screen.dart';
 import 'admin/screens/admin_dashboard_screen.dart';
@@ -13,15 +14,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    
-    // Set up initial admin accounts if they don't exist
-    await AdminSetup.setupIfNeeded();
-    
-    // Set up sample data (tournaments & athletes) if they don't exist
-    await SampleDataSetup.setupIfNeeded();
+    // Initialize Firebase with all services including Functions
+    await FirebaseService.instance.initialize();
     
   } catch (e) {
     print('Firebase initialization failed: $e');
@@ -49,8 +43,36 @@ class SportEveAdminApp extends StatelessWidget {
   }
 }
 
-class AdminAuthWrapper extends StatelessWidget {
+class AdminAuthWrapper extends StatefulWidget {
   const AdminAuthWrapper({super.key});
+
+  @override
+  State<AdminAuthWrapper> createState() => _AdminAuthWrapperState();
+}
+
+class _AdminAuthWrapperState extends State<AdminAuthWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    // Run setup tasks asynchronously after the app loads
+    _runBackgroundSetup();
+  }
+
+  Future<void> _runBackgroundSetup() async {
+    try {
+      print('🔧 Running background setup tasks...');
+      
+      // Run both setup tasks concurrently
+      await Future.wait([
+        AdminSetup.setupIfNeeded(),
+        SampleDataSetup.setupIfNeeded(),
+      ]);
+      
+      print('✅ Background setup completed');
+    } catch (e) {
+      print('❌ Background setup failed: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
