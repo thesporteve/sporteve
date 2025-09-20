@@ -2,15 +2,15 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../models/news_article.dart';
 import '../providers/news_provider.dart';
-import 'share_bottom_sheet.dart';
+import '../services/like_service.dart';
 
-class NewsCard extends StatelessWidget {
+class NewsCard extends StatefulWidget {
   final NewsArticle article;
   final bool isFeatured;
 
@@ -20,8 +20,106 @@ class NewsCard extends StatelessWidget {
     this.isFeatured = false,
   });
 
+  @override
+  State<NewsCard> createState() => _NewsCardState();
+}
+
+class _NewsCardState extends State<NewsCard> {
+  bool _isLiked = false;
+  int _likeCount = 0;
+  bool _isLikeLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _likeCount = widget.article.likes;
+    _checkLikeStatus();
+  }
+
+  /// Check if this article is already liked by the user
+  Future<void> _checkLikeStatus() async {
+    try {
+      final isLiked = await LikeService.instance.isArticleLiked(widget.article.id);
+      if (mounted) {
+        setState(() {
+          _isLiked = isLiked;
+        });
+      }
+    } catch (e) {
+      print('Error checking like status: $e');
+    }
+  }
+
+  /// Toggle like status and track anonymously
+  Future<void> _toggleLike() async {
+    if (_isLikeLoading) return;
+    
+    try {
+      setState(() {
+        _isLikeLoading = true;
+      });
+      
+      // Toggle the like status using LikeService
+      final newLikeStatus = await LikeService.instance.toggleLike(widget.article.id);
+      
+      // Update Firebase count based on the action
+      if (newLikeStatus && !_isLiked) {
+        // User just liked the article
+        await context.read<NewsProvider>().incrementArticleLikes(widget.article.id);
+        
+        if (mounted) {
+          setState(() {
+            _isLiked = true;
+            _likeCount += 1;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('❤️ Article liked!'),
+              duration: const Duration(seconds: 1),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else if (!newLikeStatus && _isLiked) {
+        // User just unliked the article
+        if (mounted) {
+          setState(() {
+            _isLiked = false;
+            _likeCount = (_likeCount > 0) ? _likeCount - 1 : 0;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('💔 Article unliked'),
+              duration: const Duration(seconds: 1),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Like tracking failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to toggle like. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLikeLoading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _launchSourceUrl(BuildContext context) async {
-    if (article.sourceUrl == null || article.sourceUrl!.isEmpty) {
+    if (widget.article.sourceUrl == null || widget.article.sourceUrl!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('No source URL available'),
@@ -33,7 +131,7 @@ class NewsCard extends StatelessWidget {
     }
 
     try {
-      final Uri url = Uri.parse(article.sourceUrl!);
+      final Uri url = Uri.parse(widget.article.sourceUrl!);
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
@@ -62,13 +160,13 @@ class NewsCard extends StatelessWidget {
         }
       },
       child: Card(
-        elevation: isFeatured ? 4 : 2,
+        elevation: widget.isFeatured ? 4 : 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
         child: InkWell(
           onTap: () {
-            context.push('/news/${article.id}');
+            context.push('/news/${widget.article.id}');
           },
           borderRadius: BorderRadius.circular(12),
           child: Stack(
@@ -92,21 +190,21 @@ class NewsCard extends StatelessWidget {
                         
                         // Title
                         Text(
-                          article.title,
+                          widget.article.title,
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       height: 1.3,
                     ),
-                    maxLines: isFeatured ? 3 : 2,
+                    maxLines: widget.isFeatured ? 3 : 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   
                   const SizedBox(height: 8),
                   
                   // Summary
-                  if (!isFeatured) ...[
+                  if (!widget.isFeatured) ...[
                     Text(
-                      article.summary,
+                      widget.article.summary,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                         height: 1.4,
@@ -125,7 +223,7 @@ class NewsCard extends StatelessWidget {
           ],
         ),
         // Swipe indicator (only show if source URL exists AND not using custom sport image)
-        if (article.sourceUrl != null && article.sourceUrl!.isNotEmpty && !_hasCustomImage())
+        if (widget.article.sourceUrl != null && widget.article.sourceUrl!.isNotEmpty && !_hasCustomImage())
           Positioned(
             top: 8,
             right: 8,
@@ -166,23 +264,23 @@ class NewsCard extends StatelessWidget {
       child: Stack(
         children: [
           // Check if imageUrl is null or empty, show custom image or placeholder
-          if (article.imageUrl == null || article.imageUrl!.isEmpty)
+          if (widget.article.imageUrl == null || widget.article.imageUrl!.isEmpty)
             _buildPlaceholderImage(context)
           else
             CachedNetworkImage(
-              imageUrl: article.imageUrl!,
+              imageUrl: widget.article.imageUrl!,
               width: double.infinity,
-              height: isFeatured ? 180 : 260,
+              height: widget.isFeatured ? 180 : 260,
               fit: BoxFit.cover,
               placeholder: (context, url) => Container(
-                height: isFeatured ? 180 : 260,
+                height: widget.isFeatured ? 180 : 260,
                 color: Theme.of(context).colorScheme.surface,
                 child: const Center(
                   child: CircularProgressIndicator(),
                 ),
               ),
               errorWidget: (context, url, error) => Container(
-                height: isFeatured ? 180 : 260,
+                height: widget.isFeatured ? 180 : 260,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -216,7 +314,7 @@ class NewsCard extends StatelessWidget {
             ),
           
           // Breaking News Badge (only show on default placeholders, not custom sport images)
-          if (article.isBreaking == true && !_hasCustomImage())
+          if (widget.article.isBreaking == true && !_hasCustomImage())
             Positioned(
               top: 12,
               left: 12,
@@ -243,17 +341,29 @@ class NewsCard extends StatelessWidget {
               top: 12,
               right: 12,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(12),
+                  color: Theme.of(context).colorScheme.surface.withOpacity(0.95),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Text(
-                  article.category.toUpperCase(),
+                  _formatCategory(widget.article.category),
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
                   ),
                 ),
               ),
@@ -268,17 +378,22 @@ class NewsCard extends StatelessWidget {
       children: [
         // Category
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              width: 1,
+            ),
           ),
           child: Text(
-            article.category.toUpperCase(),
+            _formatCategory(widget.article.category),
             style: TextStyle(
               color: Theme.of(context).colorScheme.primary,
-              fontSize: 8,
-              fontWeight: FontWeight.w600,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
             ),
           ),
         ),
@@ -305,7 +420,7 @@ class NewsCard extends StatelessWidget {
                 radius: 12,
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 child: Text(
-                  article.author.isNotEmpty ? article.author[0].toUpperCase() : 'A',
+                  widget.article.author.isNotEmpty ? widget.article.author[0].toUpperCase() : 'A',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onPrimary,
                     fontSize: 12,
@@ -316,7 +431,7 @@ class NewsCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  article.author,
+                  widget.article.author,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                     fontSize: 12,
@@ -331,47 +446,119 @@ class NewsCard extends StatelessWidget {
         
         // Published Date
         Text(
-          _formatDate(article.publishedAt),
+          _formatDate(widget.article.publishedAt),
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
             fontSize: 12,
           ),
         ),
         
-        // Views
-        if (article.views > 0) ...[
-          const SizedBox(width: 8),
-          Icon(
-            Icons.visibility,
-            size: 14,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            _formatViews(article.views),
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              fontSize: 12,
-            ),
-          ),
-        ],
+        // Engagement Stats
+        Row(
+          children: [
+            // Views
+            if (widget.article.views > 0) ...[
+              Icon(
+                Icons.visibility,
+                size: 14,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _formatViews(widget.article.views),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+            
+            // Likes
+            if (_likeCount > 0) ...[
+              const SizedBox(width: 8),
+              Icon(
+                Icons.favorite,
+                size: 14,
+                color: Colors.red.withOpacity(0.7),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _formatViews(_likeCount),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+            
+            // Shares
+            if (widget.article.shares > 0) ...[
+              const SizedBox(width: 8),
+              Icon(
+                Icons.share,
+                size: 14,
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _formatViews(widget.article.shares),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ],
+        ),
         
-        // Share Button
-        const SizedBox(width: 12),
-        GestureDetector(
-          onTap: () => ShareBottomSheet.show(context, article),
-          child: Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+        // Action Buttons
+        Row(
+          children: [
+            // Like Button
+            GestureDetector(
+              onTap: _isLikeLoading ? null : () => _toggleLike(),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: (_isLiked ? Colors.red : Colors.red.withOpacity(0.1)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: _isLikeLoading
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                        ),
+                      )
+                    : Icon(
+                        _isLiked ? Icons.favorite : Icons.favorite_border,
+                        size: 16,
+                        color: _isLiked ? Colors.white : Colors.red.withOpacity(0.8),
+                      ),
+              ),
             ),
-            child: Icon(
-              Icons.share,
-              size: 16,
-              color: Theme.of(context).colorScheme.primary,
+            
+            const SizedBox(width: 8),
+            
+            // Share Button
+            GestureDetector(
+              onTap: () => _shareArticle(context),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.share,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ],
     );
@@ -396,6 +583,42 @@ class NewsCard extends StatelessWidget {
     }
   }
 
+  /// Share article directly with native share
+  Future<void> _shareArticle(BuildContext context) async {
+    try {
+      await context.read<NewsProvider>().incrementArticleShares(widget.article.id);
+      
+      final String shareText = '''
+🏆 ${widget.article.title}
+
+${widget.article.summary}
+
+📰 Source: ${widget.article.source}
+✍️ By ${widget.article.author}
+
+Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
+      '''.trim();
+      
+      await Share.share(
+        shareText,
+        subject: widget.article.title,
+      );
+    } catch (e) {
+      print('Error sharing article: $e');
+    }
+  }
+
+  /// Format category name for better display (fixes underscores and capitalization)
+  String _formatCategory(String category) {
+    return category
+        .replaceAll('_', ' ')  // Replace underscores with spaces
+        .split(' ')
+        .map((word) => word.isNotEmpty 
+            ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+            : word)
+        .join(' ');
+  }
+
   String _formatViews(int views) {
     if (views >= 1000000) {
       return '${(views / 1000000).toStringAsFixed(1)}M';
@@ -406,12 +629,13 @@ class NewsCard extends StatelessWidget {
     }
   }
 
+
   Widget _buildPlaceholderImage(BuildContext context) {
     final newsProvider = Provider.of<NewsProvider>(context, listen: false);
     
     // First, try athlete image if athleteId exists
-    if (article.athleteId != null && article.athleteId!.isNotEmpty) {
-      final athleteName = newsProvider.getAthleteNameById(article.athleteId);
+    if (widget.article.athleteId != null && widget.article.athleteId!.isNotEmpty) {
+      final athleteName = newsProvider.getAthleteNameById(widget.article.athleteId);
       if (athleteName != null) {
         return _buildAthleteImage(context, athleteName);
       }
@@ -430,7 +654,7 @@ class NewsCard extends StatelessWidget {
     
     return SizedBox(
       width: double.infinity,
-      height: isFeatured ? 180 : 260,
+      height: widget.isFeatured ? 180 : 260,
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
         child: Image.asset(
@@ -446,7 +670,7 @@ class NewsCard extends StatelessWidget {
   }
 
   Widget _buildSportImage(BuildContext context) {
-    final category = article.category.toLowerCase();
+    final category = widget.article.category.toLowerCase();
     
     // For now, just try image number 1 to avoid missing asset errors
     // You can add more images later and increase this number
@@ -454,7 +678,7 @@ class NewsCard extends StatelessWidget {
     
     return SizedBox(
       width: double.infinity,
-      height: isFeatured ? 180 : 260,
+      height: widget.isFeatured ? 180 : 260,
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
         child: Image.asset(
@@ -482,7 +706,7 @@ class NewsCard extends StatelessWidget {
   Widget _buildDefaultPlaceholder(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: isFeatured ? 180 : 260,
+      height: widget.isFeatured ? 180 : 260,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,

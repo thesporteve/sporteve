@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/content_feed.dart';
 import '../services/admin_content_service.dart';
+import '../../services/content_analytics_service.dart';
 import '../providers/admin_auth_provider.dart';
 import '../theme/admin_theme.dart';
 import 'content_edit_screen.dart';
@@ -22,6 +24,13 @@ class _AdminContentManagementScreenState extends State<AdminContentManagementScr
   List<ContentFeed> _filteredContent = [];
   Map<String, int> _statistics = {};
   Map<String, int> _sportDistribution = {};
+  
+  // Analytics data
+  Map<String, dynamic> _analyticsStats = {};
+  List<ContentFeed> _topPerformingContent = [];
+  Map<String, int> _performanceBySport = {};
+  Map<String, int> _performanceByType = {};
+  List<Map<String, dynamic>> _recentInteractions = [];
   
   bool _isLoading = true;
   String? _error;
@@ -56,6 +65,9 @@ class _AdminContentManagementScreenState extends State<AdminContentManagementScr
       final allContent = await _contentService.getAllContentFeeds();
       final statistics = await _contentService.getContentStatistics();
       final sportDistribution = await _contentService.getSportWiseDistribution();
+      
+      // Load analytics data
+      await _loadAnalyticsData();
 
       setState(() {
         _allContent = allContent;
@@ -69,6 +81,86 @@ class _AdminContentManagementScreenState extends State<AdminContentManagementScr
         _error = 'Failed to load content data: ${e.toString()}';
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadAnalyticsData() async {
+    try {
+      // Load overall performance stats
+      final stats = await ContentAnalyticsService.instance.getContentPerformanceStats();
+      
+      // Load top performing content
+      final publishedContent = await _contentService.getContentFeedsByStatus(ContentStatus.published);
+      final sortedContent = List<ContentFeed>.from(publishedContent);
+      sortedContent.sort((a, b) => (b.viewCount + b.likeCount * 2).compareTo(a.viewCount + a.likeCount * 2));
+      
+      // Load recent interactions
+      final recentInteractions = await _getRecentInteractions();
+      
+      _analyticsStats = stats;
+      _topPerformingContent = sortedContent.take(10).toList();
+      _performanceBySport = Map<String, int>.from(stats['performance_by_sport'] ?? {});
+      _performanceByType = Map<String, int>.from(stats['performance_by_type'] ?? {});
+      _recentInteractions = recentInteractions;
+    } catch (e) {
+      print('❌ Error loading analytics data: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _getRecentInteractions() async {
+    try {
+      final query = FirebaseFirestore.instance
+          .collection('user_interactions')
+          .orderBy('timestamp', descending: true)
+          .limit(20);
+      
+      final snapshot = await query.get();
+      
+      List<Map<String, dynamic>> interactions = [];
+      
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        
+        // Get content details
+        try {
+          final contentDoc = await FirebaseFirestore.instance
+              .collection('content_feeds')
+              .doc(data['content_id'])
+              .get();
+          
+          if (contentDoc.exists) {
+            final contentData = contentDoc.data() as Map<String, dynamic>;
+            interactions.add({
+              'action': data['action'],
+              'content_type': data['content_type'],
+              'timestamp': data['timestamp'],
+              'content_title': _getContentTitle(contentData),
+              'sport_category': contentData['sport_category'],
+            });
+          }
+        } catch (e) {
+          print('Error loading content for interaction: $e');
+        }
+      }
+      
+      return interactions;
+    } catch (e) {
+      print('Error loading recent interactions: $e');
+      return [];
+    }
+  }
+
+  String _getContentTitle(Map<String, dynamic> contentData) {
+    final type = ContentType.fromString(contentData['type'] ?? '');
+    final content = contentData['content'] as Map<String, dynamic>? ?? {};
+    
+    switch (type) {
+      case ContentType.parentTip:
+        return content['title'] ?? 'Untitled Parenting Tip';
+      case ContentType.didYouKnow:
+        return content['fact']?.substring(0, 50) ?? 'Did You Know Fact';
+      case ContentType.trivia:
+        return content['question']?.substring(0, 50) ?? 'Trivia Question';
     }
   }
 
@@ -878,28 +970,390 @@ class _AdminContentManagementScreenState extends State<AdminContentManagementScr
                     // All Content Tab
                     _buildContentList(),
                     
-                    // Analytics Tab (placeholder)
-                    const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.analytics,
-                            size: 64,
-                            color: Colors.grey,
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'Advanced Analytics',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(height: 8),
-                          Text('Coming soon - detailed engagement metrics'),
-                        ],
-                      ),
-                    ),
+                    // Analytics Tab
+                    _buildAnalyticsTab(),
                   ],
                 ),
     );
+  }
+
+  Widget _buildAnalyticsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Overall Stats Cards
+          _buildAnalyticsOverallStats(),
+          
+          const SizedBox(height: 24),
+          
+          // Performance Charts Row
+          Row(
+            children: [
+              Expanded(child: _buildAnalyticsPerformanceBySport()),
+              const SizedBox(width: 16),
+              Expanded(child: _buildAnalyticsPerformanceByType()),
+            ],
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Top Performing Content
+          _buildAnalyticsTopContent(),
+          
+          const SizedBox(height: 24),
+          
+          // Recent Activity
+          _buildAnalyticsRecentActivity(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticsOverallStats() {
+    final totalContent = _analyticsStats['total_content'] ?? 0;
+    final totalViews = _analyticsStats['total_views'] ?? 0;
+    final totalLikes = _analyticsStats['total_likes'] ?? 0;
+    final totalShares = _analyticsStats['total_shares'] ?? 0;
+    final avgViews = _analyticsStats['average_views_per_content'] ?? 0.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Engagement Overview',
+          style: AdminTheme.headlineMedium.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: _buildAnalyticsStatCard('Total Content', totalContent.toString(), Icons.article, Colors.blue)),
+            const SizedBox(width: 12),
+            Expanded(child: _buildAnalyticsStatCard('Total Views', _formatAnalyticsNumber(totalViews), Icons.visibility, Colors.green)),
+            const SizedBox(width: 12),
+            Expanded(child: _buildAnalyticsStatCard('Total Likes', _formatAnalyticsNumber(totalLikes), Icons.favorite, Colors.red)),
+            const SizedBox(width: 12),
+            Expanded(child: _buildAnalyticsStatCard('Total Shares', _formatAnalyticsNumber(totalShares), Icons.share, Colors.orange)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(child: _buildAnalyticsStatCard('Avg Views/Content', avgViews.toStringAsFixed(1), Icons.trending_up, Colors.purple)),
+            const SizedBox(width: 12),
+            Expanded(child: _buildAnalyticsStatCard('Engagement Rate', '${_calculateAnalyticsEngagementRate()}%', Icons.analytics, Colors.teal)),
+            const SizedBox(width: 12),
+            Expanded(child: Container()), // Spacer
+            const SizedBox(width: 12),
+            Expanded(child: Container()), // Spacer
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnalyticsStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: Offset(0, 2))],
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticsPerformanceBySport() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Performance by Sport', style: AdminTheme.titleMedium.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          ..._performanceBySport.entries.take(5).map((entry) {
+            final maxValue = _performanceBySport.values.isNotEmpty ? _performanceBySport.values.reduce((a, b) => a > b ? a : b) : 1;
+            final percentage = (entry.value / maxValue).clamp(0.0, 1.0);
+            
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(entry.key, style: TextStyle(fontSize: 12)),
+                      Text(_formatAnalyticsNumber(entry.value), style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  LinearProgressIndicator(
+                    value: percentage,
+                    backgroundColor: Colors.grey.withOpacity(0.3),
+                    valueColor: AlwaysStoppedAnimation<Color>(_getAnalyticsSportColor(entry.key)),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticsPerformanceByType() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Performance by Type', style: AdminTheme.titleMedium.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          ..._performanceByType.entries.map((entry) {
+            final maxValue = _performanceByType.values.isNotEmpty ? _performanceByType.values.reduce((a, b) => a > b ? a : b) : 1;
+            final percentage = (entry.value / maxValue).clamp(0.0, 1.0);
+            
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(_getAnalyticsContentTypeDisplayName(entry.key), style: TextStyle(fontSize: 12)),
+                      Text(_formatAnalyticsNumber(entry.value), style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  LinearProgressIndicator(
+                    value: percentage,
+                    backgroundColor: Colors.grey.withOpacity(0.3),
+                    valueColor: AlwaysStoppedAnimation<Color>(_getAnalyticsTypeColor(entry.key)),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticsTopContent() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Top Performing Content', style: AdminTheme.titleMedium.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _topPerformingContent.take(5).length,
+            separatorBuilder: (context, index) => const Divider(),
+            itemBuilder: (context, index) {
+              final content = _topPerformingContent[index];
+              final title = _getAnalyticsContentTitleFromFeed(content);
+              final engagementScore = content.viewCount + (content.likeCount * 2);
+              
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: _getAnalyticsTypeColor(content.type.toFirestore()),
+                  child: Text('${index + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+                title: Text(
+                  title.length > 40 ? '${title.substring(0, 40)}...' : title,
+                  style: const TextStyle(fontSize: 14),
+                ),
+                subtitle: Text('${content.sportCategory} • ${_getAnalyticsContentTypeDisplayName(content.type.toFirestore())}'),
+                trailing: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('Score: $engagementScore', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text('${content.viewCount} views • ${content.likeCount} likes', style: const TextStyle(fontSize: 10)),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticsRecentActivity() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Recent User Activity', style: AdminTheme.titleMedium.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _recentInteractions.take(10).length,
+            separatorBuilder: (context, index) => const Divider(),
+            itemBuilder: (context, index) {
+              final interaction = _recentInteractions[index];
+              final action = interaction['action'] as String;
+              final contentTitle = interaction['content_title'] as String;
+              final timestamp = interaction['timestamp'] as Timestamp;
+              final sport = interaction['sport_category'] as String;
+              
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: _getAnalyticsActionColor(action),
+                  child: Icon(_getAnalyticsActionIcon(action), color: Colors.white, size: 18),
+                ),
+                title: Text(
+                  '${_getAnalyticsActionText(action)} "${contentTitle.length > 25 ? '${contentTitle.substring(0, 25)}...' : contentTitle}"',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                subtitle: Text('$sport • ${_formatAnalyticsTimestamp(timestamp)}', style: const TextStyle(fontSize: 11)),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Analytics helper methods
+  String _formatAnalyticsNumber(int number) {
+    if (number >= 1000000) return '${(number / 1000000).toStringAsFixed(1)}M';
+    if (number >= 1000) return '${(number / 1000).toStringAsFixed(1)}K';
+    return number.toString();
+  }
+
+  String _calculateAnalyticsEngagementRate() {
+    final totalViews = _analyticsStats['total_views'] ?? 0;
+    final totalLikes = _analyticsStats['total_likes'] ?? 0;
+    final totalShares = _analyticsStats['total_shares'] ?? 0;
+    
+    if (totalViews == 0) return '0.0';
+    return (((totalLikes + totalShares) / totalViews) * 100).toStringAsFixed(1);
+  }
+
+  Color _getAnalyticsSportColor(String sport) {
+    final colors = [Colors.blue, Colors.green, Colors.orange, Colors.purple, Colors.red];
+    return colors[sport.hashCode % colors.length];
+  }
+
+  Color _getAnalyticsTypeColor(String type) {
+    switch (type) {
+      case 'parent_tip': return Colors.blue;
+      case 'did_you_know': return Colors.green;
+      case 'trivia': return Colors.orange;
+      default: return Colors.grey;
+    }
+  }
+
+  String _getAnalyticsContentTypeDisplayName(String type) {
+    switch (type) {
+      case 'parent_tip': return 'Parenting Tips';
+      case 'did_you_know': return 'Did You Know';
+      case 'trivia': return 'Trivia';
+      default: return type;
+    }
+  }
+
+  String _getAnalyticsContentTitleFromFeed(ContentFeed content) {
+    switch (content.type) {
+      case ContentType.parentTip: return content.parentTipContent?.title ?? 'Untitled';
+      case ContentType.didYouKnow: return content.didYouKnowContent?.fact ?? 'Did You Know';
+      case ContentType.trivia: return content.triviaContent?.question ?? 'Trivia Question';
+    }
+  }
+
+  Color _getAnalyticsActionColor(String action) {
+    switch (action) {
+      case 'view': return Colors.blue;
+      case 'like': return Colors.red;
+      case 'share': return Colors.green;
+      case 'bookmark': return Colors.orange;
+      default: return Colors.grey;
+    }
+  }
+
+  IconData _getAnalyticsActionIcon(String action) {
+    switch (action) {
+      case 'view': return Icons.visibility;
+      case 'like': return Icons.favorite;
+      case 'share': return Icons.share;
+      case 'bookmark': return Icons.bookmark;
+      default: return Icons.help;
+    }
+  }
+
+  String _getAnalyticsActionText(String action) {
+    switch (action) {
+      case 'view': return 'Viewed';
+      case 'like': return 'Liked';
+      case 'share': return 'Shared';
+      case 'bookmark': return 'Bookmarked';
+      default: return action;
+    }
+  }
+
+  String _formatAnalyticsTimestamp(Timestamp timestamp) {
+    final dateTime = timestamp.toDate();
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
+    if (difference.inHours < 24) return '${difference.inHours}h ago';
+    if (difference.inDays < 7) return '${difference.inDays}d ago';
+    return DateFormat('MMM d').format(dateTime);
   }
 }

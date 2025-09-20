@@ -171,6 +171,66 @@ class FirebaseDataService {
     }
   }
 
+  /// Increment view count for a news article
+  Future<void> incrementArticleViews(String articleId) async {
+    try {
+      if (!_firebaseService.isFirebaseAvailable) {
+        print('📊 View tracked for article: $articleId (Firebase not available - demo mode)');
+        return;
+      }
+
+      await _firebaseService.firestore
+          .collection('news_articles')
+          .doc(articleId)
+          .update({'views': FieldValue.increment(1)});
+      
+      print('📊 View incremented for article: $articleId');
+    } catch (e) {
+      print('❌ Failed to increment view count for article $articleId: $e');
+      // Don't throw error - view tracking should be non-blocking
+    }
+  }
+
+  /// Increment like count for a news article
+  Future<void> incrementArticleLikes(String articleId) async {
+    try {
+      if (!_firebaseService.isFirebaseAvailable) {
+        print('❤️ Like tracked for article: $articleId (Firebase not available - demo mode)');
+        return;
+      }
+
+      await _firebaseService.firestore
+          .collection('news_articles')
+          .doc(articleId)
+          .update({'likes': FieldValue.increment(1)});
+      
+      print('❤️ Like incremented for article: $articleId');
+    } catch (e) {
+      print('❌ Failed to increment like count for article $articleId: $e');
+      // Don't throw error - like tracking should be non-blocking
+    }
+  }
+
+  /// Increment share count for a news article
+  Future<void> incrementArticleShares(String articleId) async {
+    try {
+      if (!_firebaseService.isFirebaseAvailable) {
+        print('🔄 Share tracked for article: $articleId (Firebase not available - demo mode)');
+        return;
+      }
+
+      await _firebaseService.firestore
+          .collection('news_articles')
+          .doc(articleId)
+          .update({'shares': FieldValue.increment(1)});
+      
+      print('🔄 Share incremented for article: $articleId');
+    } catch (e) {
+      print('❌ Failed to increment share count for article $articleId: $e');
+      // Don't throw error - share tracking should be non-blocking
+    }
+  }
+
   /// Sample news articles data
   List<NewsArticle> _getSampleNewsArticles() {
     return [

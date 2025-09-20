@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/news_article.dart';
 import '../services/share_service.dart';
+import '../providers/news_provider.dart';
 
 class ShareBottomSheet extends StatelessWidget {
   final NewsArticle article;
@@ -194,6 +196,7 @@ class ShareBottomSheet extends StatelessWidget {
                   onTap: () async {
                     Navigator.pop(context);
                     await shareService.shareArticleWithImage(article, context);
+                    _trackShare(context);
                   },
                 ),
                 const SizedBox(height: 8),
@@ -205,6 +208,7 @@ class ShareBottomSheet extends StatelessWidget {
                   onTap: () async {
                     Navigator.pop(context);
                     await shareService.shareArticleText(article);
+                    _trackShare(context);
                   },
                 ),
               ],
@@ -245,6 +249,16 @@ class ShareBottomSheet extends StatelessWidget {
     );
   }
 
+  /// Track article share anonymously
+  void _trackShare(BuildContext context) {
+    try {
+      context.read<NewsProvider>().incrementArticleShares(article.id);
+    } catch (e) {
+      print('Share tracking failed: $e');
+      // Don't show error to user - share tracking should be silent
+    }
+  }
+
   Widget _buildShareAppButton(
     BuildContext context, 
     ShareApp app, 
@@ -258,6 +272,7 @@ class ShareBottomSheet extends StatelessWidget {
         } else {
           await shareService.shareToApp(article, app.name);
         }
+        _trackShare(context);
       },
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

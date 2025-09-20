@@ -15,6 +15,8 @@ class NewsArticle {
   final int? readTime; // in minutes
   final bool? isBreaking;
   final int views;
+  final int likes;
+  final int shares;
   final List<String> relatedArticles;
   final String? tournamentId;
   final String? athleteId;
@@ -34,6 +36,8 @@ class NewsArticle {
     this.readTime,
     this.isBreaking,
     this.views = 0,
+    this.likes = 0,
+    this.shares = 0,
     this.relatedArticles = const [],
     this.tournamentId,
     this.athleteId,
@@ -55,6 +59,8 @@ class NewsArticle {
       readTime: json['readTime'],
       isBreaking: json['isBreaking'],
       views: json['views'] ?? 0,
+      likes: json['likes'] ?? 0,
+      shares: json['shares'] ?? 0,
       relatedArticles: List<String>.from(json['relatedArticles'] ?? []),
       tournamentId: json['tournamentId'],
       athleteId: json['athleteId'],
@@ -77,6 +83,8 @@ class NewsArticle {
       readTime: data['readTime'],
       isBreaking: data['isBreaking'],
       views: data['views'] ?? 0,
+      likes: data['likes'] ?? 0,
+      shares: data['shares'] ?? 0,
       relatedArticles: List<String>.from(data['relatedArticles'] ?? []),
       tournamentId: data['tournamentId'],
       athleteId: data['athleteId'],
@@ -99,6 +107,8 @@ class NewsArticle {
       'readTime': readTime,
       'isBreaking': isBreaking,
       'views': views,
+      'likes': likes,
+      'shares': shares,
       'relatedArticles': relatedArticles,
       'tournamentId': tournamentId,
       'athleteId': athleteId,
@@ -141,6 +151,8 @@ class NewsArticle {
     int? readTime,
     bool? isBreaking,
     int? views,
+    int? likes,
+    int? shares,
     List<String>? relatedArticles,
     String? tournamentId,
     String? athleteId,
@@ -160,6 +172,8 @@ class NewsArticle {
       readTime: readTime ?? this.readTime,
       isBreaking: isBreaking ?? this.isBreaking,
       views: views ?? this.views,
+      likes: likes ?? this.likes,
+      shares: shares ?? this.shares,
       relatedArticles: relatedArticles ?? this.relatedArticles,
       tournamentId: tournamentId ?? this.tournamentId,
       athleteId: athleteId ?? this.athleteId,

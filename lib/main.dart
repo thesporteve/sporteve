@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import 'providers/news_provider.dart';
 import 'providers/settings_provider.dart';
+import 'providers/content_provider.dart';
+import 'models/content_feed.dart';
 import 'screens/home_screen.dart';
 import 'screens/news_detail_screen.dart';
 import 'screens/splash_screen.dart';
@@ -13,6 +15,8 @@ import 'screens/bookmarks_screen.dart';
 import 'screens/signin_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/tips_facts_screen.dart';
+import 'screens/content_detail_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/firebase_service.dart';
 import 'services/auth_service.dart';
@@ -54,6 +58,7 @@ class SportEveApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => NewsProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => ContentProvider()),
       ],
       child: Consumer2<NewsProvider, SettingsProvider>(
         builder: (context, newsProvider, settingsProvider, child) {
@@ -64,12 +69,17 @@ class SportEveApp extends StatelessWidget {
             });
           }
           
-          // Set up notification tap callback to refresh news
-          WidgetsBinding.instance.addPostFrameCallback((_) {
+          // Set up notification handling and check for pending navigation
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
             NotificationService.instance.setNotificationTapCallback(() {
               print('📱 Notification tapped - refreshing news feed...');
               newsProvider.refresh();
+              // Handle any pending navigation from notification tap
+              _handlePendingNavigation(context);
             });
+            
+            // Check for pending navigation when app starts
+            await _handlePendingNavigation(context);
           });
           
           return MaterialApp.router(
@@ -147,11 +157,78 @@ final GoRouter _router = GoRouter(
       builder: (context, state) => const SettingsScreen(),
     ),
     GoRoute(
+      path: '/tips-facts',
+      builder: (context, state) {
+        final highlightId = state.uri.queryParameters['highlight'];
+        return TipsFactsScreen(highlightId: highlightId);
+      },
+    ),
+    GoRoute(
       path: '/news/:id',
       builder: (context, state) {
         final newsId = state.pathParameters['id']!;
         return NewsDetailScreen(newsId: newsId);
       },
     ),
+    GoRoute(
+      path: '/content/:id',
+      builder: (context, state) {
+        final contentId = state.pathParameters['id']!;
+        final content = state.extra as ContentFeed?;
+        return ContentDetailScreen(contentId: contentId, content: content);
+      },
+    ),
   ],
 );
+
+/// Handle pending navigation from notifications
+Future<void> _handlePendingNavigation(BuildContext context) async {
+  try {
+    final navigationData = await NotificationService.instance.getPendingNavigationData();
+    if (navigationData != null && navigationData.isNotEmpty) {
+      print('📱 Processing pending navigation: $navigationData');
+      
+      final screen = navigationData['screen'] as String?;
+      
+      if (screen == 'content_detail') {
+        // Navigate to content detail screen
+        final contentId = navigationData['content_id'] as String?;
+        if (contentId != null) {
+          print('📱 Navigating to content detail: $contentId');
+          // Use a short delay to ensure the app is fully loaded
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (context.mounted) {
+              context.push('/content/$contentId');
+            }
+          });
+        }
+      } else if (screen == 'news_detail') {
+        // Navigate to news detail screen
+        final articleId = navigationData['article_id'] as String?;
+        if (articleId != null) {
+          print('📱 Navigating to news detail: $articleId');
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (context.mounted) {
+              context.push('/news/$articleId');
+            }
+          });
+        }
+      } else if (screen == 'tips_facts') {
+        // Navigate to tips & facts with highlight
+        final contentId = navigationData['content_id'] as String?;
+        print('📱 Navigating to tips & facts with highlight: $contentId');
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (context.mounted) {
+            if (contentId != null) {
+              context.push('/tips-facts?highlight=$contentId');
+            } else {
+              context.push('/tips-facts');
+            }
+          }
+        });
+      }
+    }
+  } catch (e) {
+    print('❌ Error handling pending navigation: $e');
+  }
+}

@@ -164,6 +164,36 @@ class NewsProvider with ChangeNotifier {
     }
   }
 
+  /// Increment view count for a news article
+  Future<void> incrementArticleViews(String articleId) async {
+    try {
+      await FirebaseDataService.instance.incrementArticleViews(articleId);
+    } catch (e) {
+      print('Failed to increment article views: ${e.toString()}');
+      // Don't throw error - view tracking should be non-blocking
+    }
+  }
+
+  /// Increment like count for a news article
+  Future<void> incrementArticleLikes(String articleId) async {
+    try {
+      await FirebaseDataService.instance.incrementArticleLikes(articleId);
+    } catch (e) {
+      print('Failed to increment article likes: ${e.toString()}');
+      // Don't throw error - like tracking should be non-blocking
+    }
+  }
+
+  /// Increment share count for a news article
+  Future<void> incrementArticleShares(String articleId) async {
+    try {
+      await FirebaseDataService.instance.incrementArticleShares(articleId);
+    } catch (e) {
+      print('Failed to increment article shares: ${e.toString()}');
+      // Don't throw error - share tracking should be non-blocking
+    }
+  }
+
   void setCategory(String category) {
     _selectedCategory = category;
     notifyListeners();

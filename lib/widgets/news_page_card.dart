@@ -1,15 +1,15 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../models/news_article.dart';
 import '../utils/sports_icons.dart';
 import '../services/bookmark_service.dart';
+import '../services/like_service.dart';
 import '../providers/news_provider.dart';
-import 'share_bottom_sheet.dart';
 
 class NewsPageCard extends StatefulWidget {
   final NewsArticle article;
@@ -26,11 +26,30 @@ class NewsPageCard extends StatefulWidget {
 class _NewsPageCardState extends State<NewsPageCard> {
   bool _isBookmarked = false;
   bool _isBookmarkLoading = false;
+  bool _isLiked = false;
+  int _likeCount = 0;
+  bool _isLikeLoading = false;
 
   @override
   void initState() {
     super.initState();
+    _likeCount = widget.article.likes;
     _checkBookmarkStatus();
+    _checkLikeStatus();
+  }
+
+  /// Check if this article is already liked by the user
+  Future<void> _checkLikeStatus() async {
+    try {
+      final isLiked = await LikeService.instance.isArticleLiked(widget.article.id);
+      if (mounted) {
+        setState(() {
+          _isLiked = isLiked;
+        });
+      }
+    } catch (e) {
+      print('Error checking like status: $e');
+    }
   }
 
   Future<void> _checkBookmarkStatus() async {
@@ -147,6 +166,99 @@ class _NewsPageCardState extends State<NewsPageCard> {
           );
         }
       }
+    }
+  }
+
+  /// Toggle like status and track anonymously
+  Future<void> _likeArticle() async {
+    if (_isLikeLoading) return;
+    
+    try {
+      setState(() {
+        _isLikeLoading = true;
+      });
+      
+      // Toggle the like status using LikeService
+      final newLikeStatus = await LikeService.instance.toggleLike(widget.article.id);
+      
+      // Update Firebase count based on the action
+      if (newLikeStatus && !_isLiked) {
+        // User just liked the article
+        await context.read<NewsProvider>().incrementArticleLikes(widget.article.id);
+        
+        if (mounted) {
+          setState(() {
+            _isLiked = true;
+            _likeCount += 1;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('❤️ Article liked!'),
+              duration: const Duration(seconds: 1),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else if (!newLikeStatus && _isLiked) {
+        // User just unliked the article
+        if (mounted) {
+          setState(() {
+            _isLiked = false;
+            _likeCount = (_likeCount > 0) ? _likeCount - 1 : 0;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('💔 Article unliked'),
+              duration: const Duration(seconds: 1),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Like tracking failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to toggle like. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLikeLoading = false;
+        });
+      }
+    }
+  }
+
+  /// Share article directly with native share
+  Future<void> _shareArticle() async {
+    try {
+      await context.read<NewsProvider>().incrementArticleShares(widget.article.id);
+      
+      final String shareText = '''
+🏆 ${widget.article.title}
+
+${widget.article.summary}
+
+📰 Source: ${widget.article.source}
+✍️ By ${widget.article.author}
+
+Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
+      '''.trim();
+      
+      await Share.share(
+        shareText,
+        subject: widget.article.title,
+      );
+    } catch (e) {
+      print('Error sharing article: $e');
     }
   }
 
@@ -346,14 +458,25 @@ class _NewsPageCardState extends State<NewsPageCard> {
 
   Widget _buildCategory() {
     return Text(
-      widget.article.category.toUpperCase(),
+      _formatCategory(widget.article.category),
       style: TextStyle(
         color: Theme.of(context).colorScheme.primary,
-        fontSize: 9,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.5,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.3,
       ),
     );
+  }
+
+  /// Format category name for better display (fixes underscores and capitalization)
+  String _formatCategory(String category) {
+    return category
+        .replaceAll('_', ' ')  // Replace underscores with spaces
+        .split(' ')
+        .map((word) => word.isNotEmpty 
+            ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+            : word)
+        .join(' ');
   }
 
   Widget _buildTitle() {
@@ -489,21 +612,29 @@ class _NewsPageCardState extends State<NewsPageCard> {
               isLoading: _isBookmarkLoading,
             ),
             const SizedBox(width: 12),
-            _buildActionButton(Icons.share, () => ShareBottomSheet.show(context, widget.article)),
+            _buildActionButton(
+              _isLiked ? Icons.favorite : Icons.favorite_border, 
+              _likeArticle,
+              color: Colors.red,
+              isHighlighted: _isLiked,
+              isLoading: _isLikeLoading,
+            ),
+            const SizedBox(width: 12),
+            _buildActionButton(Icons.share, () => _shareArticle()),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildActionButton(IconData icon, VoidCallback onTap, {bool isHighlighted = false, bool isLoading = false}) {
+  Widget _buildActionButton(IconData icon, VoidCallback onTap, {bool isHighlighted = false, bool isLoading = false, Color? color}) {
     return GestureDetector(
       onTap: isLoading ? null : onTap,
       child: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: isHighlighted ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+          color: color?.withOpacity(0.1) ?? (isHighlighted ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface.withOpacity(0.3)),
           shape: BoxShape.circle,
         ),
         child: isLoading
@@ -517,7 +648,7 @@ class _NewsPageCardState extends State<NewsPageCard> {
               )
             : Icon(
                 icon,
-                color: isHighlighted ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
+                color: color ?? (isHighlighted ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface),
                 size: 20,
               ),
       ),

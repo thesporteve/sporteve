@@ -409,16 +409,8 @@ function formatContentNotificationBody(
  * @return {string} Screen name for mobile app
  */
 function getContentScreenName(contentType: string): string {
-  switch (contentType) {
-  case "trivia":
-    return "trivia_detail";
-  case "parent_tip":
-    return "parent_tip_detail";
-  case "did_you_know":
-    return "fun_fact_detail";
-  default:
-    return "content_detail";
-  }
+  // Direct navigation to content detail screen for better UX
+  return "content_detail";
 }
 
 /**

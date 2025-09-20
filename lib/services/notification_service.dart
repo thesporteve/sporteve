@@ -98,7 +98,13 @@ class NotificationService {
       // Subscribe to breaking news
       await _firebaseService.messaging.subscribeToTopic('breaking_news');
       
-      print('Subscribed to default topics');
+      // Subscribe to AI content notifications
+      await _firebaseService.messaging.subscribeToTopic('sports_content');
+      await _firebaseService.messaging.subscribeToTopic('content_parent_tip');
+      await _firebaseService.messaging.subscribeToTopic('content_did_you_know');
+      await _firebaseService.messaging.subscribeToTopic('content_trivia');
+      
+      print('Subscribed to default topics (news + content feeds)');
     } catch (e) {
       print('Failed to subscribe to default topics: $e');
     }
@@ -117,18 +123,61 @@ class NotificationService {
   /// Handle notification tap
   void _handleNotificationTap(RemoteMessage message) {
     print('Notification tapped: ${message.messageId}');
-    print('Triggering news refresh...');
+    print('Data: ${message.data}');
     
-    // Call the refresh callback to update news feed
+    // Call the refresh callback to update news/content feeds
     _onNotificationTap?.call();
     
     // Extract navigation data
     final data = message.data;
     if (data.containsKey('screen')) {
-      print('Navigate to: ${data['screen']}');
+      final screen = data['screen'];
+      print('Navigate to: $screen');
       
-      // Store navigation data for later use
-      _storeNavigationData(data);
+      // Handle different types of notifications
+      if (screen == 'content_detail' && data.containsKey('content_id')) {
+        // Content feed notification - navigate directly to content detail
+        final contentId = data['content_id'];
+        print('Content notification - navigating to detail: $contentId');
+        
+        // Store content navigation data for direct navigation
+        final contentData = {
+          'screen': 'content_detail',
+          'content_id': contentId,
+          'content_type': data['content_type'] ?? '',
+          'sport_category': data['sport_category'] ?? '',
+          'route': '/content/$contentId',  // Direct route for immediate navigation
+        };
+        _storeNavigationData(contentData);
+      } else if (screen == 'tips_facts' && data.containsKey('content_id')) {
+        // Fallback: Content feed notification - navigate to Tips & Facts with highlight (for backward compatibility)
+        final contentId = data['content_id'];
+        print('Content notification - highlighting content: $contentId');
+        
+        // Store content navigation data
+        final contentData = {
+          'screen': 'tips_facts',
+          'content_id': contentId,
+          'content_type': data['content_type'] ?? '',
+          'sport_category': data['sport_category'] ?? '',
+        };
+        _storeNavigationData(contentData);
+      } else if (screen == 'news_detail' && data.containsKey('article_id')) {
+        // News article notification - navigate to news detail
+        final articleId = data['article_id'];
+        print('News notification - opening article: $articleId');
+        
+        // Store news navigation data
+        final newsData = {
+          'screen': 'news_detail',
+          'article_id': articleId,
+          'category': data['category'],
+        };
+        _storeNavigationData(newsData);
+      } else {
+        // Generic navigation
+        _storeNavigationData(data);
+      }
     }
   }
 
@@ -143,7 +192,9 @@ class NotificationService {
   Future<void> _storeNavigationData(Map<String, dynamic> data) async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('pending_navigation', data.toString());
+      // Store as JSON string for proper parsing
+      await prefs.setString('pending_navigation', _encodeNavigationData(data));
+      print('📱 Stored navigation data: $data');
     } catch (e) {
       print('Failed to store navigation data: $e');
     }
@@ -157,13 +208,37 @@ class NotificationService {
       if (dataString != null) {
         // Clear the stored data
         await prefs.remove('pending_navigation');
-        // TODO: Parse and return the data
-        return {};
+        // Parse and return the navigation data
+        final parsedData = _decodeNavigationData(dataString);
+        print('📱 Retrieved navigation data: $parsedData');
+        return parsedData;
       }
     } catch (e) {
       print('Failed to get pending navigation data: $e');
     }
     return null;
+  }
+
+  /// Encode navigation data as a simple string format
+  String _encodeNavigationData(Map<String, dynamic> data) {
+    final parts = <String>[];
+    data.forEach((key, value) {
+      parts.add('$key:$value');
+    });
+    return parts.join('|');
+  }
+
+  /// Decode navigation data from string format
+  Map<String, dynamic> _decodeNavigationData(String dataString) {
+    final data = <String, dynamic>{};
+    final parts = dataString.split('|');
+    for (final part in parts) {
+      final keyValue = part.split(':');
+      if (keyValue.length == 2) {
+        data[keyValue[0]] = keyValue[1];
+      }
+    }
+    return data;
   }
 
   /// Subscribe to specific sport category

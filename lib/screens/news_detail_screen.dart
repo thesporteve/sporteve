@@ -5,10 +5,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../providers/news_provider.dart';
 import '../models/news_article.dart';
 import '../widgets/news_card.dart';
+import '../services/bookmark_service.dart';
 
 class NewsDetailScreen extends StatefulWidget {
   final String newsId;
@@ -27,8 +29,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
   bool _isLoading = true;
   String? _error;
   bool _isBookmarked = false;
-  bool _isLiked = false;
-  int _likeCount = 0;
+  bool _isBookmarkLoading = false;
 
   @override
   void initState() {
@@ -44,15 +45,106 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
           _article = article;
           _isLoading = false;
           if (article != null) {
-            _likeCount = article.views; // Using views as like count for demo
           }
         });
+        
+        // Check bookmark status
+        if (article != null) {
+          _checkBookmarkStatus();
+        }
+        
+        // Track article view (anonymous, non-blocking)
+        if (article != null) {
+          _trackArticleView();
+        }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _error = e.toString();
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  /// Check if article is already bookmarked
+  Future<void> _checkBookmarkStatus() async {
+    try {
+      final isBookmarked = await BookmarkService.instance.isBookmarked(widget.newsId);
+      if (mounted) {
+        setState(() {
+          _isBookmarked = isBookmarked;
+        });
+      }
+    } catch (e) {
+      print('Error checking bookmark status: $e');
+    }
+  }
+
+  /// Track article view anonymously
+  Future<void> _trackArticleView() async {
+    try {
+      await context.read<NewsProvider>().incrementArticleViews(widget.newsId);
+    } catch (e) {
+      // Silent failure - view tracking shouldn't affect user experience
+      print('View tracking failed: $e');
+    }
+  }
+
+
+  /// Toggle bookmark status
+  Future<void> _toggleBookmark() async {
+    if (_isBookmarkLoading || _article == null) return;
+
+    setState(() {
+      _isBookmarkLoading = true;
+    });
+
+    try {
+      if (_isBookmarked) {
+        await BookmarkService.instance.removeBookmark(_article!.id);
+        if (mounted) {
+          setState(() {
+            _isBookmarked = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('📖 Removed from bookmarks'),
+              backgroundColor: Colors.orange.withOpacity(0.9),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        await BookmarkService.instance.addBookmark(_article!);
+        if (mounted) {
+          setState(() {
+            _isBookmarked = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('📚 Added to bookmarks'),
+              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.9),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Bookmark toggle failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update bookmark. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBookmarkLoading = false;
         });
       }
     }
@@ -261,15 +353,20 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
       ),
       actions: [
         IconButton(
-          icon: Icon(
-            _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-            color: Colors.white,
-          ),
-          onPressed: () {
-            setState(() {
-              _isBookmarked = !_isBookmarked;
-            });
-          },
+          icon: _isBookmarkLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : Icon(
+                  _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                  color: Colors.white,
+                ),
+          onPressed: _isBookmarkLoading ? null : _toggleBookmark,
         ),
         IconButton(
           icon: const Icon(Icons.share, color: Colors.white),
@@ -365,30 +462,6 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
               ),
             ],
           ),
-        ),
-        // Like Button
-        Row(
-          children: [
-            IconButton(
-              icon: Icon(
-                _isLiked ? Icons.favorite : Icons.favorite_border,
-                color: _isLiked ? Colors.red : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              ),
-              onPressed: () {
-                setState(() {
-                  _isLiked = !_isLiked;
-                  _likeCount += _isLiked ? 1 : -1;
-                });
-              },
-            ),
-            Text(
-              _formatViews(_likeCount),
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                fontSize: 12,
-              ),
-            ),
-          ],
         ),
       ],
     );
@@ -498,13 +571,30 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
     }
   }
 
-  void _shareArticle() {
-    // TODO: Implement sharing functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Share functionality coming soon!'),
-      ),
-    );
+  Future<void> _shareArticle() async {
+    if (_article == null) return;
+    
+    try {
+      await context.read<NewsProvider>().incrementArticleShares(_article!.id);
+      
+      final String shareText = '''
+🏆 ${_article!.title}
+
+${_article!.summary}
+
+📰 Source: ${_article!.source}
+✍️ By ${_article!.author}
+
+Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
+      '''.trim();
+      
+      await Share.share(
+        shareText,
+        subject: _article!.title,
+      );
+    } catch (e) {
+      print('Error sharing article: $e');
+    }
   }
 
   Widget _buildPlaceholderBackground() {

@@ -9,6 +9,7 @@ import '../providers/settings_provider.dart';
 import '../models/news_article.dart';
 import '../models/user.dart';
 import '../widgets/news_page_card.dart';
+import '../widgets/daily_tip_banner.dart';
 import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -157,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                         ),
                         icon: const Icon(Icons.clear_all, size: 18),
-                        label: const Text('Show All News'),
+                        label: const Text('All News'),
                       )
                     else if (!settingsProvider.showAllSports)
                       Column(
@@ -212,6 +213,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Tournament Filter Chips (always show if filter is active OR tournaments exist)
                 if (newsProvider.selectedTournamentId != null || newsProvider.liveTournaments.isNotEmpty)
                   _buildTournamentFilterChips(context, newsProvider, settingsProvider),
+                
+                // Daily Tip Banner
+                const DailyTipBanner(),
                 
                 // News Pages (Vertical PageView)
                 Expanded(
@@ -275,16 +279,16 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: filteredTournaments.length + 1, // +1 for "Show All" chip
+        itemCount: filteredTournaments.length + 1, // +1 for "All" chip
         itemBuilder: (context, index) {
           if (index == 0) {
-            // "Show All" chip to clear filter
+            // "All" chip to clear filter
             final isSelected = newsProvider.selectedTournamentId == null;
             return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: FilterChip(
                 label: Text(
-                  'Show All',
+                  'All',
                   style: TextStyle(
                     color: isSelected 
                         ? Theme.of(context).colorScheme.onPrimary
@@ -378,8 +382,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildNavItem(Icons.search, 'Search', false, () {
             context.push('/search');
           }),
-          _buildNavItem(Icons.bookmark, 'Bookmarks', false, () {
-            context.push('/bookmarks');
+          _buildNavItem(Icons.lightbulb_outlined, 'Tips & Facts', false, () {
+            context.push('/tips-facts');
           }),
           _buildNavItem(Icons.settings, 'Settings', false, () {
             context.push('/settings');

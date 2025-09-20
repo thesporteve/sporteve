@@ -2,11 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/news_provider.dart';
 import '../models/news_article.dart';
 import '../widgets/news_card.dart';
-import '../services/firebase_data_service.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -19,15 +19,107 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   List<NewsArticle> _searchResults = [];
+  List<NewsArticle> _filteredResults = [];
   bool _isSearching = false;
   Timer? _debounceTimer;
+  
+  // Enhanced search features
+  List<String> _recentSearches = [];
+  List<String> _searchSuggestions = [];
+  String _selectedCategory = 'All';
+  DateTime? _searchStartTime;
+  bool _showSuggestions = false;
+  
+  // Categories for filtering
+  final List<String> _categories = [
+    'All', 'Basketball', 'Football', 'Soccer', 'Tennis', 
+    'Baseball', 'Hockey', 'Cricket', 'Swimming', 'Athletics'
+  ];
+  
+  
+  // Smart suggestions based on category
+  final Map<String, List<String>> _categorySuggestions = {
+    'Basketball': ['NBA', 'NCAA', 'playoffs', 'draft', 'MVP', 'trade'],
+    'Football': ['NFL', 'draft', 'playoffs', 'Super Bowl', 'trade', 'injury'],
+    'Soccer': ['Premier League', 'Champions League', 'World Cup', 'transfer', 'goal'],
+    'Tennis': ['Wimbledon', 'US Open', 'Australian Open', 'French Open', 'ranking'],
+    'Baseball': ['MLB', 'World Series', 'trade deadline', 'draft', 'home run'],
+  };
   
   @override
   void initState() {
     super.initState();
+    _loadRecentSearches();
     // Auto-focus the search field for immediate typing
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _searchFocusNode.requestFocus();
+    });
+  }
+  
+  Future<void> _loadRecentSearches() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final recent = prefs.getStringList('recent_searches') ?? [];
+      setState(() {
+        _recentSearches = recent.take(5).toList(); // Keep last 5 searches
+      });
+    } catch (e) {
+      print('Error loading recent searches: $e');
+    }
+  }
+  
+  Future<void> _saveRecentSearch(String query) async {
+    if (query.trim().isEmpty) return;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      List<String> recent = List.from(_recentSearches);
+      
+      // Remove if already exists
+      recent.remove(query);
+      // Add to beginning
+      recent.insert(0, query);
+      // Keep only last 10
+      recent = recent.take(10).toList();
+      
+      await prefs.setStringList('recent_searches', recent);
+      setState(() {
+        _recentSearches = recent.take(5).toList();
+      });
+    } catch (e) {
+      print('Error saving recent search: $e');
+    }
+  }
+  
+  void _generateSearchSuggestions(String query) {
+    if (query.isEmpty) {
+      setState(() {
+        _searchSuggestions = [];
+        _showSuggestions = false;
+      });
+      return;
+    }
+    
+    final suggestions = <String>{};
+    final lowerQuery = query.toLowerCase();
+    
+    // Add category-specific suggestions
+    for (final category in _categorySuggestions.keys) {
+      final categorySugs = _categorySuggestions[category] ?? [];
+      suggestions.addAll(
+        categorySugs.where((sug) => sug.toLowerCase().contains(lowerQuery))
+      );
+    }
+    
+    
+    // Add recent searches that match
+    suggestions.addAll(
+      _recentSearches.where((recent) => recent.toLowerCase().contains(lowerQuery))
+    );
+    
+    setState(() {
+      _searchSuggestions = suggestions.take(5).toList();
+      _showSuggestions = suggestions.isNotEmpty;
     });
   }
 
@@ -39,20 +131,29 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-  void _performSearch(String query) async {
+  void _performSearch(String query, {bool saveToHistory = true}) async {
     if (query.isEmpty) {
       setState(() {
         _searchResults = [];
+        _filteredResults = [];
         _isSearching = false;
+        _showSuggestions = false;
       });
       return;
     }
 
     setState(() {
       _isSearching = true;
+      _showSuggestions = false;
+      _searchStartTime = DateTime.now();
     });
 
     try {
+      // Save to recent searches
+      if (saveToHistory) {
+        await _saveRecentSearch(query);
+      }
+      
       // Use NewsProvider's cached articles for faster search
       final newsProvider = context.read<NewsProvider>();
       
@@ -61,16 +162,18 @@ class _SearchScreenState extends State<SearchScreen> {
         await newsProvider.loadNews();
       }
       
-      // Search through cached articles
+      // Enhanced search through cached articles
       final results = newsProvider.articles.where((article) =>
           article.title.toLowerCase().contains(query.toLowerCase()) ||
           article.summary.toLowerCase().contains(query.toLowerCase()) ||
           article.content.toLowerCase().contains(query.toLowerCase()) ||
+          article.category.toLowerCase().contains(query.toLowerCase()) ||
           article.category.toLowerCase().contains(query.toLowerCase())).toList();
       
       if (mounted) {
         setState(() {
           _searchResults = results;
+          _filteredResults = _applyFilters(results);
           _isSearching = false;
         });
       }
@@ -78,39 +181,81 @@ class _SearchScreenState extends State<SearchScreen> {
       if (mounted) {
         setState(() {
           _searchResults = [];
+          _filteredResults = [];
           _isSearching = false;
         });
       }
     }
+  }
+  
+  List<NewsArticle> _applyFilters(List<NewsArticle> results) {
+    if (_selectedCategory == 'All') {
+      return results;
+    }
+    
+    return results.where((article) =>
+        article.category.toLowerCase() == _selectedCategory.toLowerCase() ||
+        article.category.toLowerCase() == _selectedCategory.toLowerCase()).toList();
+  }
+  
+  void _selectCategory(String category) {
+    setState(() {
+      _selectedCategory = category;
+      _filteredResults = _applyFilters(_searchResults);
+    });
   }
 
   void _onSearchChanged(String value) {
     // Cancel the previous timer
     _debounceTimer?.cancel();
     
-    // Start a new timer
+    // Generate suggestions immediately
+    _generateSearchSuggestions(value);
+    
+    // Start a new timer for search
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-      _performSearch(value);
+      if (value.trim().isNotEmpty) {
+        _performSearch(value);
+      }
     });
     
     // Update UI immediately to show/hide clear button
     setState(() {});
   }
+  
+  void _selectSuggestion(String suggestion) {
+    _searchController.text = suggestion;
+    _performSearch(suggestion);
+    _searchFocusNode.unfocus();
+  }
+  
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            // App Bar with Search
-            _buildSearchAppBar(),
-            
-            // Search Results
-            Expanded(
-              child: _buildSearchResults(),
+            Column(
+              children: [
+                // App Bar with Search
+                _buildSearchAppBar(),
+                
+                // Category Filters (only show when searching)
+                if (_searchController.text.isNotEmpty && !_showSuggestions)
+                  _buildCategoryFilters(),
+                
+                // Search Results
+                Expanded(
+                  child: _buildSearchResults(),
+                ),
+              ],
             ),
+            
+            // Search Suggestions Overlay
+            if (_showSuggestions)
+              _buildSuggestionsOverlay(),
           ],
         ),
       ),
@@ -182,6 +327,82 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  Widget _buildCategoryFilters() {
+    return Container(
+      height: 50,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _categories.length,
+        itemBuilder: (context, index) {
+          final category = _categories[index];
+          final isSelected = category == _selectedCategory;
+          
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilterChip(
+              label: Text(category),
+              selected: isSelected,
+              onSelected: (_) => _selectCategory(category),
+              backgroundColor: const Color(0xFF2A2A2A),
+              selectedColor: const Color(0xFF4CAF50),
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey[400],
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSuggestionsOverlay() {
+    return Positioned(
+      top: 120, // Below search bar
+      left: 16,
+      right: 16,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A2A2A),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ListView.separated(
+          shrinkWrap: true,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: _searchSuggestions.length,
+          separatorBuilder: (context, index) => Divider(
+            color: Colors.grey[800],
+            height: 1,
+          ),
+          itemBuilder: (context, index) {
+            final suggestion = _searchSuggestions[index];
+            return ListTile(
+              leading: Icon(
+                Icons.search,
+                color: Colors.grey[400],
+                size: 20,
+              ),
+              title: Text(
+                suggestion,
+                style: const TextStyle(color: Colors.white),
+              ),
+              onTap: () => _selectSuggestion(suggestion),
+              dense: true,
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildSearchResults() {
     if (_searchController.text.isEmpty) {
       return _buildEmptyState();
@@ -195,78 +416,245 @@ class _SearchScreenState extends State<SearchScreen> {
       );
     }
 
-    if (_searchResults.isEmpty) {
+    if (_filteredResults.isEmpty) {
       return _buildNoResultsState();
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _searchResults.length,
-      itemBuilder: (context, index) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: NewsCard(article: _searchResults[index]),
-        );
-      },
+    final searchTime = _searchStartTime != null 
+        ? DateTime.now().difference(_searchStartTime!).inMilliseconds / 1000
+        : 0.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Result count and search time
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            '${_filteredResults.length} results found in ${searchTime.toStringAsFixed(2)}s',
+            style: TextStyle(
+              color: Colors.grey[400],
+              fontSize: 12,
+            ),
+          ),
+        ),
+        
+        // Results list
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _filteredResults.length,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: NewsCard(
+                  article: _filteredResults[index],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildEmptyState() {
-    return Center(
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.search,
-            size: 80,
-            color: Colors.grey[400],
+          // Header
+          Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.search,
+                  size: 60,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Discover Sports News',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Find articles, match updates, and breaking news',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey[400],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
+          
+          const SizedBox(height: 32),
+          
+          // Quick Categories
           Text(
-            'Search Sports News',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            'Browse by Sport',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: Colors.white,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Enter keywords to find articles about your favorite sports',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey[400],
-            ),
-            textAlign: TextAlign.center,
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _categories.skip(1).map((category) => ActionChip(
+              label: Text(category),
+              onPressed: () => _selectSuggestion(category.toLowerCase()),
+              backgroundColor: const Color(0xFF2A2A2A),
+              labelStyle: TextStyle(color: Colors.grey[300]),
+              side: BorderSide(color: Colors.grey[600]!),
+            )).toList(),
           ),
+          
+          
+          // Recent Searches (if any)
+          if (_recentSearches.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Recent Searches',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                TextButton(
+                  onPressed: _clearRecentSearches,
+                  child: Text(
+                    'Clear',
+                    style: TextStyle(color: Colors.grey[400]),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Column(
+              children: _recentSearches.map((recent) => ListTile(
+                leading: Icon(Icons.history, color: Colors.grey[400], size: 20),
+                title: Text(
+                  recent,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                trailing: Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 16),
+                onTap: () => _selectSuggestion(recent),
+                dense: true,
+              )).toList(),
+            ),
+          ],
         ],
       ),
     );
   }
+  
+  Future<void> _clearRecentSearches() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('recent_searches');
+      setState(() {
+        _recentSearches = [];
+      });
+    } catch (e) {
+      print('Error clearing recent searches: $e');
+    }
+  }
 
   Widget _buildNoResultsState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.search_off,
-            size: 80,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No Results Found',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Try different keywords or check your spelling',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off,
+              size: 80,
               color: Colors.grey[400],
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            const SizedBox(height: 16),
+            Text(
+              'No Results Found',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'No articles found for "${_searchController.text}"',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[400],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            
+            // Search suggestions
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Try searching for:',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _categories.skip(1).take(4).map((suggestion) => ActionChip(
+                    label: Text(suggestion),
+                    onPressed: () => _selectSuggestion(suggestion.toLowerCase()),
+                    backgroundColor: const Color(0xFF2A2A2A),
+                    labelStyle: TextStyle(color: Colors.grey[300]),
+                    side: BorderSide(color: Colors.grey[600]!),
+                  )).toList(),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Tips
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Search Tips:',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '• Check your spelling\n• Try different keywords\n• Use broader terms\n• Remove filters if applied',
+                    style: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

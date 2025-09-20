@@ -52,6 +52,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         
                         const SizedBox(height: 32),
                         
+                        _buildSectionTitle('Bookmarks'),
+                        _buildBookmarksSection(),
+                        
+                        const SizedBox(height: 32),
+                        
                         _buildSectionTitle('Feedback'),
                         _buildFeedbackSection(),
                         
@@ -335,6 +340,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+
+  Widget _buildBookmarksSection() {
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          Icons.bookmark_outlined,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        title: const Text('Saved Articles'),
+        subtitle: const Text('View your bookmarked articles'),
+        trailing: Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+        ),
+        onTap: () {
+          context.push('/bookmarks');
+        },
+      ),
+    );
+  }
 
   Widget _buildAboutSection() {
     return Container(

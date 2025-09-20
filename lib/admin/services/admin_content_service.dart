@@ -5,10 +5,10 @@ import '../../models/content_generation_request.dart';
 import '../../services/firebase_service.dart';
 
 class AdminContentService {
+  AdminContentService._internal();
+  
   static AdminContentService? _instance;
   static AdminContentService get instance => _instance ??= AdminContentService._internal();
-  
-  AdminContentService._internal();
 
   final FirebaseFirestore _firestore = FirebaseService.instance.firestore;
   final FirebaseFunctions _functions = FirebaseService.instance.functions;
@@ -255,6 +255,26 @@ class AdminContentService {
     } catch (e) {
       print('Error fetching content feeds by type: $e');
       return [];
+    }
+  }
+
+  /// Create manual content (for admin direct content creation)
+  Future<String> createManualContent(ContentFeed contentFeed, String createdBy) async {
+    try {
+      // Add creation metadata
+      final contentData = contentFeed.toFirestore();
+      contentData['created_by'] = createdBy;
+      contentData['created_at'] = FieldValue.serverTimestamp();
+      contentData['updated_at'] = FieldValue.serverTimestamp();
+      
+      // Create the document
+      final docRef = await _contentFeedsCollection.add(contentData);
+      
+      print('✅ Manual content created with ID: ${docRef.id}');
+      return docRef.id;
+    } catch (e) {
+      print('❌ Error creating manual content: $e');
+      throw Exception('Failed to create manual content: $e');
     }
   }
 
