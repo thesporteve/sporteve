@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/news_article.dart';
 import '../services/admin_data_service.dart';
 import '../theme/admin_theme.dart';
 import '../widgets/admin_data_table.dart';
 import '../widgets/admin_card_list.dart';
 import '../forms/news_article_form.dart';
+import '../forms/news_article_image_form.dart';
+import '../providers/admin_auth_provider.dart';
 import 'package:intl/intl.dart';
 
 class AdminNewsScreen extends StatefulWidget {
@@ -123,6 +126,66 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
     );
   }
 
+  void _addArticleWithImage() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => NewsArticleImageForm(
+          onSaved: () {
+            Navigator.of(context).pop();
+            _loadArticles();
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showAddArticleOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        final authProvider = Provider.of<AdminAuthProvider>(context, listen: false);
+        
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Add New Article',
+                style: AdminTheme.titleMedium.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const Icon(Icons.article, color: AdminTheme.primaryColor),
+                title: const Text('Add Article'),
+                subtitle: const Text('Standard article with text content'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _addArticle();
+                },
+              ),
+              if (authProvider.isSuperAdmin) ...[
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.add_photo_alternate, color: AdminTheme.primaryColor),
+                  title: const Text('Add Article with Image'),
+                  subtitle: const Text('Article with image upload (Super Admin only)'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _addArticleWithImage();
+                  },
+                ),
+              ],
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -130,12 +193,28 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
 
     return Scaffold(
       body: _buildBody(isDesktop),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addArticle,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Article'),
-        backgroundColor: AdminTheme.primaryColor,
-        foregroundColor: Colors.white,
+      floatingActionButton: Consumer<AdminAuthProvider>(
+        builder: (context, authProvider, child) {
+          if (authProvider.isSuperAdmin) {
+            // Super admins see options button
+            return FloatingActionButton.extended(
+              onPressed: _showAddArticleOptions,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Article'),
+              backgroundColor: AdminTheme.primaryColor,
+              foregroundColor: Colors.white,
+            );
+          } else {
+            // Regular admins see standard add button
+            return FloatingActionButton.extended(
+              onPressed: _addArticle,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Article'),
+              backgroundColor: AdminTheme.primaryColor,
+              foregroundColor: Colors.white,
+            );
+          }
+        },
       ),
     );
   }

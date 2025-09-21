@@ -2,6 +2,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_service.dart';
+import 'debug_logger.dart';
 
 /// Notification service for handling push notifications
 class NotificationService {
@@ -122,8 +123,10 @@ class NotificationService {
 
   /// Handle notification tap
   void _handleNotificationTap(RemoteMessage message) {
-    print('Notification tapped: ${message.messageId}');
-    print('Data: ${message.data}');
+    print('🔔 Notification tapped: ${message.messageId}');
+    print('📋 Notification data: ${message.data}');
+    DebugLogger.instance.logInfo('Notification', 'Notification tapped: ${message.messageId}');
+    DebugLogger.instance.logInfo('Notification', 'Data: ${message.data}');
     
     // Call the refresh callback to update news/content feeds
     _onNotificationTap?.call();
@@ -132,27 +135,34 @@ class NotificationService {
     final data = message.data;
     if (data.containsKey('screen')) {
       final screen = data['screen'];
-      print('Navigate to: $screen');
+      print('🧭 Navigate to: $screen');
+      DebugLogger.instance.logInfo('Navigation', 'Navigating to screen: $screen');
       
       // Handle different types of notifications
       if (screen == 'content_detail' && data.containsKey('content_id')) {
         // Content feed notification - navigate directly to content detail
         final contentId = data['content_id'];
-        print('Content notification - navigating to detail: $contentId');
+        final contentType = data['content_type'] ?? 'unknown';
+        final sportCategory = data['sport_category'] ?? 'general';
+        
+        print('📱 Content notification - navigating to detail: $contentId (type: $contentType, sport: $sportCategory)');
+        DebugLogger.instance.logInfo('Navigation', 'Content detail navigation: ID=$contentId, type=$contentType, sport=$sportCategory');
         
         // Store content navigation data for direct navigation
         final contentData = {
           'screen': 'content_detail',
           'content_id': contentId,
-          'content_type': data['content_type'] ?? '',
-          'sport_category': data['sport_category'] ?? '',
+          'content_type': contentType,
+          'sport_category': sportCategory,
           'route': '/content/$contentId',  // Direct route for immediate navigation
+          'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
         };
         _storeNavigationData(contentData);
       } else if (screen == 'tips_facts' && data.containsKey('content_id')) {
         // Fallback: Content feed notification - navigate to Tips & Facts with highlight (for backward compatibility)
         final contentId = data['content_id'];
-        print('Content notification - highlighting content: $contentId');
+        print('📱 Content notification - highlighting content: $contentId');
+        DebugLogger.instance.logInfo('Navigation', 'Tips & Facts highlight navigation: $contentId');
         
         // Store content navigation data
         final contentData = {
@@ -160,24 +170,32 @@ class NotificationService {
           'content_id': contentId,
           'content_type': data['content_type'] ?? '',
           'sport_category': data['sport_category'] ?? '',
+          'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
         };
         _storeNavigationData(contentData);
       } else if (screen == 'news_detail' && data.containsKey('article_id')) {
         // News article notification - navigate to news detail
         final articleId = data['article_id'];
-        print('News notification - opening article: $articleId');
+        print('📰 News notification - opening article: $articleId');
+        DebugLogger.instance.logInfo('Navigation', 'News detail navigation: $articleId');
         
         // Store news navigation data
         final newsData = {
           'screen': 'news_detail',
           'article_id': articleId,
           'category': data['category'],
+          'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
         };
         _storeNavigationData(newsData);
       } else {
         // Generic navigation
+        print('❓ Unknown navigation type: $screen');
+        DebugLogger.instance.logWarning('Navigation', 'Unknown navigation type: $screen');
         _storeNavigationData(data);
       }
+    } else {
+      print('❌ No screen data in notification');
+      DebugLogger.instance.logError('Navigation', 'No screen data in notification');
     }
   }
 

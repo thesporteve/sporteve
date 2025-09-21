@@ -12,6 +12,7 @@ import 'admin_content_review_screen.dart';
 import 'admin_content_management_screen.dart';
 import 'admin_management_screen.dart';
 import 'admin_more_screen.dart';
+import 'admin_feedback_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -48,6 +49,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         selectedIcon: Icons.library_books,
         label: 'Sports Wiki',
         screen: const AdminSportsWikiScreen(),
+      ),
+      AdminNavigationItem(
+        icon: Icons.feedback_outlined,
+        selectedIcon: Icons.feedback,
+        label: 'User Feedback',
+        screen: const AdminFeedbackScreen(),
       ),
       // Only show AI content features for super admins
       if (authProvider.isSuperAdmin) ...[

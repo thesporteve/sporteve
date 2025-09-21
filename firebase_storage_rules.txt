@@ -1,0 +1,49 @@
+// Firebase Storage Security Rules for SportEve Admin Panel
+// Copy these rules to Firebase Console > Storage > Rules
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow admin users to upload images to news_images folder
+    match /news_images/{imageId} {
+      // Allow read for all users (needed for displaying images on website/app and mobile app)
+      allow read: if true;
+      
+      // Allow write (upload, update, delete) for admin operations
+      // Using permissive rules to match your current Firestore setup
+      allow write: if isValidImageUpload();
+    }
+    
+    // Allow other admin-related uploads (future use)
+    match /admin_uploads/{allPaths=**} {
+      allow read: if true;
+      allow write: if isValidUpload();
+    }
+    
+    // Default rule - deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// Helper function to validate image uploads for news articles
+function isValidImageUpload() {
+  return 
+    // Check if the image size is reasonable (max 5MB to match your admin form)
+    request.resource.size < 5 * 1024 * 1024 &&
+    // Check if it's an image file
+    request.resource.contentType.matches('image/.*') &&
+    // Only allow common image formats
+    (request.resource.contentType == 'image/jpeg' ||
+     request.resource.contentType == 'image/png' ||
+     request.resource.contentType == 'image/gif' ||
+     request.resource.contentType == 'image/webp');
+}
+
+// Helper function for general admin uploads
+function isValidUpload() {
+  return 
+    // Check file size limit (max 10MB for general uploads)
+    request.resource.size < 10 * 1024 * 1024;
+}

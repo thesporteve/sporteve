@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/news_article.dart';
 import '../models/match.dart';
 import 'firebase_service.dart';
+import 'debug_logger.dart';
 
 /// Data service for handling news articles and matches
 /// Uses Firestore when available, falls back to sample data
@@ -15,17 +16,25 @@ class FirebaseDataService {
 
   /// Get news articles from Firestore or mock data
   Future<List<NewsArticle>> getNewsArticles() async {
+    DebugLogger.instance.logInfo('Data', 'Fetching news articles...');
+    DebugLogger.instance.logFirebaseStatus(_firebaseService.getFirebaseStatus());
+    
     try {
       if (!_firebaseService.isFirebaseAvailable) {
+        DebugLogger.instance.logWarning('Data', 'Firebase not available, using mock data');
         return _getSampleNewsArticles();
       }
 
-      // Try to fetch from Firestore
+      DebugLogger.instance.logInfo('Data', 'Querying Firestore for news articles...');
+      // Try to fetch from Firestore with timeout
       QuerySnapshot snapshot = await _firebaseService.firestore
           .collection('news_articles')
           .orderBy('publishedAt', descending: true)
           .limit(50)
-          .get();
+          .get()
+          .timeout(Duration(seconds: 20));
+
+      DebugLogger.instance.logInfo('Data', 'Firestore query completed. Found ${snapshot.docs.length} articles');
 
       if (snapshot.docs.isNotEmpty) {
         List<NewsArticle> articles = snapshot.docs.map((doc) {
@@ -33,13 +42,22 @@ class FirebaseDataService {
           return NewsArticle.fromFirestore(doc.id, data);
         }).toList();
         
+        DebugLogger.instance.logSuccess('Data', 'Successfully loaded ${articles.length} articles from Firestore');
         return articles;
       } else {
         // No articles in Firestore, return sample data
+        DebugLogger.instance.logWarning('Data', 'No articles found in Firestore, using mock data');
         return _getSampleNewsArticles();
       }
     } catch (e) {
-      print('Failed to fetch news articles from Firestore: $e');
+      DebugLogger.instance.logError('Data', 'Failed to fetch news articles from Firestore: $e');
+      if (e.toString().contains('timeout')) {
+        DebugLogger.instance.logError('Data', 'Request timed out - check network connection');
+      } else if (e.toString().contains('permission')) {
+        DebugLogger.instance.logError('Data', 'Permission denied - check Firestore security rules');
+      } else if (e.toString().contains('network')) {
+        DebugLogger.instance.logError('Data', 'Network error - check internet connectivity');
+      }
       return _getSampleNewsArticles();
     }
   }

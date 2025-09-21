@@ -220,13 +220,13 @@ class _TipsFactsScreenState extends State<TipsFactsScreen> with TickerProviderSt
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onSurface),
             onPressed: () => context.pop(),
           ),
           Text(
             'Tips & Facts',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -234,7 +234,7 @@ class _TipsFactsScreenState extends State<TipsFactsScreen> with TickerProviderSt
           Text(
             '${_filteredContent.length} items',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey[400],
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
             ),
           ),
         ],

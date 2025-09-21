@@ -8,6 +8,7 @@ import '../models/content_feed.dart';
 import '../services/content_analytics_service.dart';
 import '../services/content_like_service.dart';
 import '../providers/content_provider.dart';
+import '../services/debug_logger.dart';
 
 class ContentDetailScreen extends StatefulWidget {
   final String contentId;
@@ -41,6 +42,9 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     try {
       // Use the content passed through the route if available
       if (widget.content != null) {
+        print('📱 Using content passed via route: ${widget.content!.id}');
+        DebugLogger.instance.logInfo('ContentDetail', 'Using content passed via route: ${widget.content!.id}');
+        
         setState(() {
           _content = widget.content;
           _isLoading = false;
@@ -52,10 +56,19 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       } else {
         // Load content by ID from ContentProvider
         print('📱 Loading content by ID: ${widget.contentId}');
+        DebugLogger.instance.logInfo('ContentDetail', 'Loading content by ID: ${widget.contentId}');
+        
         final contentProvider = context.read<ContentProvider>();
         
-        // Ensure content is loaded
-        await contentProvider.loadContent();
+        // Check if content is already loaded
+        if (contentProvider.allContent.isEmpty) {
+          print('📥 Content provider empty, loading content...');
+          DebugLogger.instance.logInfo('ContentDetail', 'Content provider empty, loading content...');
+          await contentProvider.loadContent();
+        }
+        
+        print('🔍 Searching in ${contentProvider.allContent.length} content items');
+        DebugLogger.instance.logInfo('ContentDetail', 'Searching in ${contentProvider.allContent.length} content items');
         
         // Find the content by ID
         final content = contentProvider.allContent
@@ -63,6 +76,9 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
             .firstOrNull;
         
         if (content != null) {
+          print('✅ Found content: ${content.displayTitle} (${content.type})');
+          DebugLogger.instance.logSuccess('ContentDetail', 'Found content: ${content.displayTitle} (${content.type})');
+          
           setState(() {
             _content = content;
             _isLoading = false;
@@ -72,13 +88,24 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           await _checkLikeStatus();
           _trackView();
         } else {
+          print('❌ Content not found with ID: ${widget.contentId}');
+          DebugLogger.instance.logError('ContentDetail', 'Content not found with ID: ${widget.contentId}');
+          
+          // Debug: Show available content IDs
+          final availableIds = contentProvider.allContent.map((c) => c.id).take(5).toList();
+          print('📋 Available content IDs (first 5): $availableIds');
+          DebugLogger.instance.logInfo('ContentDetail', 'Available content IDs (first 5): $availableIds');
+          
           setState(() {
-            _error = 'Content not found';
+            _error = 'Content not found (ID: ${widget.contentId})';
             _isLoading = false;
           });
         }
       }
     } catch (e) {
+      print('❌ Error loading content: $e');
+      DebugLogger.instance.logError('ContentDetail', 'Error loading content: $e');
+      
       if (mounted) {
         setState(() {
           _error = e.toString();

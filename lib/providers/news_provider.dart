@@ -5,6 +5,7 @@ import '../models/match.dart';
 import '../models/tournament.dart';
 import '../services/firebase_data_service.dart';
 import '../services/tournament_service.dart';
+import '../services/debug_logger.dart';
 
 class NewsProvider with ChangeNotifier {
   List<NewsArticle> _articles = [];
@@ -68,15 +69,24 @@ class NewsProvider with ChangeNotifier {
 
   // Methods
   Future<void> loadNews({bool forceRefresh = false}) async {
+    DebugLogger.instance.logInfo('NewsProvider', 'loadNews called (forceRefresh: $forceRefresh)');
+    
     // Check if we have cached data that's still valid
     if (!forceRefresh && _originalArticles.isNotEmpty && _lastLoadTime != null) {
       final cacheAge = DateTime.now().difference(_lastLoadTime!);
       if (cacheAge < _cacheValidDuration) {
-        print('Using cached articles (${_originalArticles.length} articles, age: ${cacheAge.inMinutes}m)');
+        print('📋 Using cached articles (${_originalArticles.length} articles, age: ${cacheAge.inMinutes}m)');
+        DebugLogger.instance.logWarning('NewsProvider', 'Using cached articles (${_originalArticles.length} articles, age: ${cacheAge.inMinutes}m)');
         _articles = List.from(_originalArticles);
         notifyListeners();
         return;
+      } else {
+        DebugLogger.instance.logInfo('NewsProvider', 'Cache expired (age: ${cacheAge.inMinutes}m), fetching fresh data');
       }
+    }
+
+    if (forceRefresh) {
+      DebugLogger.instance.logInfo('NewsProvider', 'Force refresh requested - bypassing cache');
     }
 
     _setLoading(true);
@@ -84,17 +94,21 @@ class NewsProvider with ChangeNotifier {
 
     try {
       // Load news articles first
+      DebugLogger.instance.logInfo('NewsProvider', 'Fetching fresh articles from Firebase...');
       _articles = await FirebaseDataService.instance.getNewsArticles();
       _originalArticles = List.from(_articles); // Cache the original articles
       _lastLoadTime = DateTime.now();
-      print('Loaded ${_articles.length} articles from Firestore (fresh)');
+      print('✅ Loaded ${_articles.length} articles from Firestore (fresh)');
+      DebugLogger.instance.logSuccess('NewsProvider', 'Loaded ${_articles.length} articles from Firestore (fresh)');
       
       // Load live tournaments
       try {
         _liveTournaments = await TournamentService.instance.getLiveTournaments();
         print('Loaded ${_liveTournaments.length} live tournaments');
+        DebugLogger.instance.logInfo('NewsProvider', 'Loaded ${_liveTournaments.length} live tournaments');
       } catch (tournamentError) {
         print('Failed to load tournaments: $tournamentError');
+        DebugLogger.instance.logError('NewsProvider', 'Failed to load tournaments: $tournamentError');
         _liveTournaments = []; // Continue without tournaments
       }
       
@@ -102,13 +116,16 @@ class NewsProvider with ChangeNotifier {
       try {
         await _loadAthleteNames(_articles);
         print('Loaded athlete names for articles');
+        DebugLogger.instance.logInfo('NewsProvider', 'Loaded athlete names for articles');
       } catch (athleteError) {
         print('Failed to load athlete names: $athleteError');
+        DebugLogger.instance.logError('NewsProvider', 'Failed to load athlete names: $athleteError');
         // Continue without athlete names
       }
       
       notifyListeners();
     } catch (e) {
+      DebugLogger.instance.logError('NewsProvider', 'Failed to load news: ${e.toString()}');
       _setError('Failed to load news: ${e.toString()}');
     } finally {
       _setLoading(false);
@@ -227,6 +244,7 @@ class NewsProvider with ChangeNotifier {
   }
 
   void refresh() {
+    DebugLogger.instance.logInfo('NewsProvider', 'Manual refresh triggered');
     loadNews(forceRefresh: true);
     loadMatches();
   }

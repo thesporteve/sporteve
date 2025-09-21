@@ -514,14 +514,17 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
                     child: TextFormField(
                       controller: _sourceUrlController,
                       decoration: const InputDecoration(
-                        labelText: 'Source URL',
+                        labelText: 'Source URL *',
                         hintText: 'https://twitter.com/user/status/123... or https://example.com/article',
+                        helperText: 'Required - Link to the original source',
                       ),
                       validator: (value) {
-                        if (value != null && value.trim().isNotEmpty) {
-                          if (Uri.tryParse(value.trim())?.hasAbsolutePath != true) {
-                            return 'Please enter a valid URL';
-                          }
+                        // Source URL is now mandatory
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Source URL is required';
+                        }
+                        if (Uri.tryParse(value.trim())?.hasAbsolutePath != true) {
+                          return 'Please enter a valid URL';
                         }
                         return null;
                       },

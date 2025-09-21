@@ -17,10 +17,12 @@ import 'screens/profile_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/tips_facts_screen.dart';
 import 'screens/content_detail_screen.dart';
+import 'screens/debug_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/firebase_service.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
+import 'services/debug_logger.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
@@ -105,7 +107,7 @@ final GoRouter _router = GoRouter(
     
     // Protected routes that require authentication
     final protectedRoutes = ['/profile'];
-    final publicRoutes = ['/', '/home', '/signin', '/search', '/bookmarks', '/settings'];
+    final publicRoutes = ['/', '/home', '/signin', '/search', '/bookmarks', '/settings', '/debug'];
     
     // Check if current route is protected
     final isProtectedRoute = protectedRoutes.any((route) => 
@@ -178,6 +180,10 @@ final GoRouter _router = GoRouter(
         return ContentDetailScreen(contentId: contentId, content: content);
       },
     ),
+    GoRoute(
+      path: '/debug',
+      builder: (context, state) => const DebugScreen(),
+    ),
   ],
 );
 
@@ -187,18 +193,36 @@ Future<void> _handlePendingNavigation(BuildContext context) async {
     final navigationData = await NotificationService.instance.getPendingNavigationData();
     if (navigationData != null && navigationData.isNotEmpty) {
       print('📱 Processing pending navigation: $navigationData');
+      DebugLogger.instance.logInfo('Navigation', 'Processing pending navigation: $navigationData');
       
       final screen = navigationData['screen'] as String?;
       
       if (screen == 'content_detail') {
         // Navigate to content detail screen
         final contentId = navigationData['content_id'] as String?;
+        final contentType = navigationData['content_type'] as String?;
+        
         if (contentId != null) {
-          print('📱 Navigating to content detail: $contentId');
-          // Use a short delay to ensure the app is fully loaded
-          Future.delayed(const Duration(milliseconds: 500), () {
+          print('📱 Navigating to content detail: $contentId (type: $contentType)');
+          DebugLogger.instance.logInfo('Navigation', 'Content detail navigation: ID=$contentId, type=$contentType');
+          
+          // Ensure providers are loaded before navigation
+          Future.delayed(const Duration(milliseconds: 800), () async {
             if (context.mounted) {
-              context.push('/content/$contentId');
+              try {
+                // Pre-load content provider to ensure content is available
+                final contentProvider = Provider.of<ContentProvider>(context, listen: false);
+                if (contentProvider.allContent.isEmpty) {
+                  DebugLogger.instance.logInfo('Navigation', 'Loading content before navigation');
+                  await contentProvider.loadContent();
+                }
+                
+                DebugLogger.instance.logSuccess('Navigation', 'Navigating to /content/$contentId');
+                context.push('/content/$contentId');
+              } catch (e) {
+                DebugLogger.instance.logError('Navigation', 'Failed to navigate to content: $e');
+                print('❌ Navigation error: $e');
+              }
             }
           });
         }
@@ -207,8 +231,11 @@ Future<void> _handlePendingNavigation(BuildContext context) async {
         final articleId = navigationData['article_id'] as String?;
         if (articleId != null) {
           print('📱 Navigating to news detail: $articleId');
+          DebugLogger.instance.logInfo('Navigation', 'News detail navigation: $articleId');
+          
           Future.delayed(const Duration(milliseconds: 500), () {
             if (context.mounted) {
+              DebugLogger.instance.logSuccess('Navigation', 'Navigating to /news/$articleId');
               context.push('/news/$articleId');
             }
           });
@@ -217,18 +244,28 @@ Future<void> _handlePendingNavigation(BuildContext context) async {
         // Navigate to tips & facts with highlight
         final contentId = navigationData['content_id'] as String?;
         print('📱 Navigating to tips & facts with highlight: $contentId');
+        DebugLogger.instance.logInfo('Navigation', 'Tips & Facts navigation with highlight: $contentId');
+        
         Future.delayed(const Duration(milliseconds: 500), () {
           if (context.mounted) {
             if (contentId != null) {
+              DebugLogger.instance.logSuccess('Navigation', 'Navigating to /tips-facts?highlight=$contentId');
               context.push('/tips-facts?highlight=$contentId');
             } else {
+              DebugLogger.instance.logSuccess('Navigation', 'Navigating to /tips-facts');
               context.push('/tips-facts');
             }
           }
         });
+      } else {
+        print('❓ Unknown navigation screen: $screen');
+        DebugLogger.instance.logWarning('Navigation', 'Unknown navigation screen: $screen');
       }
+    } else {
+      DebugLogger.instance.logInfo('Navigation', 'No pending navigation data');
     }
   } catch (e) {
     print('❌ Error handling pending navigation: $e');
+    DebugLogger.instance.logError('Navigation', 'Error handling pending navigation: $e');
   }
 }

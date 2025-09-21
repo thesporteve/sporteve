@@ -6,6 +6,7 @@ import 'admin_content_generation_screen.dart';
 import 'admin_content_review_screen.dart';
 import 'admin_content_management_screen.dart';
 import 'admin_management_screen.dart';
+import 'admin_feedback_screen.dart';
 
 class AdminMoreScreen extends StatelessWidget {
   const AdminMoreScreen({super.key});
@@ -114,6 +115,14 @@ class AdminMoreScreen extends StatelessWidget {
                     description: 'Manage admin users',
                     color: Colors.purple,
                     onTap: () => _navigateToScreen(context, const AdminManagementScreen()),
+                  ),
+                  _buildFeatureCard(
+                    context,
+                    icon: Icons.feedback,
+                    title: 'User Feedback',
+                    description: 'View user app feedback',
+                    color: Colors.teal,
+                    onTap: () => _navigateToScreen(context, const AdminFeedbackScreen()),
                   ),
                 ],
               ),

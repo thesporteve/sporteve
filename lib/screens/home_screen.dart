@@ -93,6 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () {
+                        // Use refresh() method which calls loadNews with forceRefresh: true
                         newsProvider.refresh();
                       },
                       style: ElevatedButton.styleFrom(
@@ -193,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     else
                       ElevatedButton.icon(
                         onPressed: () async {
-                          await newsProvider.loadNews();
+                          await newsProvider.loadNews(forceRefresh: true);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(context).colorScheme.primary,
@@ -225,7 +226,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         onRefresh: () async {
                           // Add haptic feedback for better UX
                           HapticFeedback.lightImpact();
-                          await newsProvider.loadNews();
+                          // Force refresh to bypass cache and get fresh data
+                          await newsProvider.loadNews(forceRefresh: true);
                         },
                         color: Theme.of(context).colorScheme.primary,
                         backgroundColor: Theme.of(context).colorScheme.surface,

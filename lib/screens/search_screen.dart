@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/news_provider.dart';
+import '../providers/settings_provider.dart';
 import '../models/news_article.dart';
 import '../widgets/news_card.dart';
 
@@ -30,11 +31,8 @@ class _SearchScreenState extends State<SearchScreen> {
   DateTime? _searchStartTime;
   bool _showSuggestions = false;
   
-  // Categories for filtering
-  final List<String> _categories = [
-    'All', 'Basketball', 'Football', 'Soccer', 'Tennis', 
-    'Baseball', 'Hockey', 'Cricket', 'Swimming', 'Athletics'
-  ];
+  // Categories for filtering - dynamically loaded from supported sports
+  List<String> _categories = ['All'];
   
   
   // Smart suggestions based on category
@@ -49,10 +47,16 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    _searchFocusNode.addListener(_onFocusChanged);
     _loadRecentSearches();
-    // Auto-focus the search field for immediate typing
+    _loadSupportedSports();
+    // Delay auto-focus slightly to prevent keyboard overlap issues
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _searchFocusNode.requestFocus();
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          _searchFocusNode.requestFocus();
+        }
+      });
     });
   }
   
@@ -126,6 +130,8 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    // Dismiss keyboard before disposing
+    _searchFocusNode.unfocus();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
@@ -228,13 +234,43 @@ class _SearchScreenState extends State<SearchScreen> {
     _performSearch(suggestion);
     _searchFocusNode.unfocus();
   }
+
+  void _loadSupportedSports() {
+    // Load supported sports from SettingsProvider
+    final supportedSports = SettingsProvider.availableSports
+        .map((sport) => SettingsProvider.getSportDisplayName(sport))
+        .toList();
+    supportedSports.sort(); // Sort alphabetically
+    
+    setState(() {
+      _categories = ['All', ...supportedSports];
+    });
+  }
+
+  void _onFocusChanged() {
+    setState(() {
+      _showSuggestions = _searchFocusNode.hasFocus && _searchController.text.isNotEmpty;
+    });
+  }
   
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF1A1A1A),
-      body: SafeArea(
+    return PopScope(
+      onPopInvoked: (didPop) {
+        // Ensure keyboard is dismissed when navigating back
+        _searchFocusNode.unfocus();
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.background,
+        // Dismiss keyboard when tapping outside
+        body: GestureDetector(
+          onTap: () {
+            // Dismiss keyboard when tapping outside search field
+            FocusScope.of(context).unfocus();
+          },
+          child: SafeArea(
         child: Stack(
           children: [
             Column(
@@ -257,6 +293,8 @@ class _SearchScreenState extends State<SearchScreen> {
             if (_showSuggestions)
               _buildSuggestionsOverlay(),
           ],
+        ),
+        ),
         ),
       ),
     );

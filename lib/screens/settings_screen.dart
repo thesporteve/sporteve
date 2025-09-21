@@ -409,6 +409,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
             ),
           ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () => context.go('/debug'),
+            icon: const Icon(Icons.bug_report),
+            label: const Text('Debug Info'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.primary,
+            ),
+          ),
         ],
       ),
     );

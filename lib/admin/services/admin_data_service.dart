@@ -62,10 +62,14 @@ class AdminDataService {
 
   Future<void> updateNewsArticle(String articleId, NewsArticle article) async {
     try {
+      final updateData = article.toJson();
+      // Add updatedAt field but preserve original publishedAt for proper ordering
+      updateData['updatedAt'] = DateTime.now().toIso8601String();
+      
       await _firestore
           .collection('news_articles')
           .doc(articleId)
-          .update(article.toJson());
+          .update(updateData);
       print('Updated news article: $articleId');
     } catch (e) {
       print('Error updating news article: $e');

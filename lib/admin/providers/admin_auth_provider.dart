@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
@@ -8,7 +9,22 @@ class AdminAuthProvider extends ChangeNotifier {
   String? _currentAdminId;
   Map<String, dynamic>? _currentAdminData;
   
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore? _firestore;
+  
+  AdminAuthProvider() {
+    _initializeFirestore();
+  }
+  
+  Future<void> _initializeFirestore() async {
+    try {
+      _firestore = FirebaseFirestore.instance;
+    } catch (e) {
+      print('Failed to initialize Firestore in AdminAuthProvider: $e');
+      if (kIsWeb) {
+        print('Web platform detected - Firestore initialization may be delayed');
+      }
+    }
+  }
   
 
   bool get isAuthenticated => _isAuthenticated;
@@ -29,11 +45,20 @@ class AdminAuthProvider extends ChangeNotifier {
   /// Login with Firestore admin collection
   Future<bool> _loginWithFirestore(String usernameOrEmail, String password) async {
     try {
+      // Ensure Firestore is initialized
+      if (_firestore == null) {
+        await _initializeFirestore();
+        if (_firestore == null) {
+          print('Firestore not available');
+          return false;
+        }
+      }
+      
       // Hash the password for comparison
       final hashedPassword = _hashPassword(password);
       
       // Query for admin by username or email
-      QuerySnapshot query = await _firestore
+      QuerySnapshot query = await _firestore!
           .collection('admins')
           .where('isActive', isEqualTo: true)
           .get();
@@ -48,7 +73,7 @@ class AdminAuthProvider extends ChangeNotifier {
             storedPasswordHash == hashedPassword) {
           
           // Update last login
-          await _firestore.collection('admins').doc(doc.id).update({
+          await _firestore!.collection('admins').doc(doc.id).update({
             'lastLoginAt': FieldValue.serverTimestamp(),
           });
 
@@ -99,7 +124,16 @@ class AdminAuthProvider extends ChangeNotifier {
     try {
       print('🔍 AdminAuthProvider: Fetching active admins from Firestore...');
       
-      final querySnapshot = await _firestore
+      // Ensure Firestore is initialized
+      if (_firestore == null) {
+        await _initializeFirestore();
+        if (_firestore == null) {
+          print('Firestore not available');
+          return [];
+        }
+      }
+      
+      final querySnapshot = await _firestore!
           .collection('admins')
           .where('isActive', isEqualTo: true)
           .get();
@@ -140,7 +174,7 @@ class AdminAuthProvider extends ChangeNotifier {
     try {
       final hashedPassword = _hashPassword(password);
       
-      await _firestore.collection('admins').add({
+      await _firestore!.collection('admins').add({
         'username': username,
         'email': email,
         'passwordHash': hashedPassword,
@@ -163,7 +197,7 @@ class AdminAuthProvider extends ChangeNotifier {
     if (!isSuperAdmin) return false;
 
     try {
-      await _firestore.collection('admins').doc(adminId).update({
+      await _firestore!.collection('admins').doc(adminId).update({
         'isActive': isActive,
         'updatedAt': FieldValue.serverTimestamp(),
         'updatedBy': _currentAdminId,
@@ -181,7 +215,7 @@ class AdminAuthProvider extends ChangeNotifier {
     if (!isSuperAdmin) return [];
 
     try {
-      final querySnapshot = await _firestore.collection('admins').get();
+      final querySnapshot = await _firestore!.collection('admins').get();
       return querySnapshot.docs.map((doc) => {
         'id': doc.id,
         ...doc.data(),
@@ -197,7 +231,7 @@ class AdminAuthProvider extends ChangeNotifier {
     if (!isSuperAdmin) return false;
 
     try {
-      await _firestore.collection('admins').doc(adminId).delete();
+      await _firestore!.collection('admins').doc(adminId).delete();
       return true;
     } catch (e) {
       print('Error deleting admin: $e');
@@ -231,7 +265,7 @@ class AdminAuthProvider extends ChangeNotifier {
         updateData['passwordHash'] = _hashPassword(password);
       }
 
-      await _firestore.collection('admins').doc(adminId).update(updateData);
+      await _firestore!.collection('admins').doc(adminId).update(updateData);
       return true;
     } catch (e) {
       print('Error updating admin: $e');
