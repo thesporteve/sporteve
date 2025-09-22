@@ -8,8 +8,8 @@ import 'providers/settings_provider.dart';
 import 'providers/content_provider.dart';
 import 'models/content_feed.dart';
 import 'screens/home_screen.dart';
+import 'screens/custom_splash_screen.dart';
 import 'screens/news_detail_screen.dart';
-import 'screens/splash_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/bookmarks_screen.dart';
 import 'screens/signin_screen.dart';
@@ -132,7 +132,7 @@ final GoRouter _router = GoRouter(
   routes: [
     GoRoute(
       path: '/',
-      builder: (context, state) => const SplashScreen(),
+      builder: (context, state) => const CustomSplashScreen(),
     ),
     GoRoute(
       path: '/signin',

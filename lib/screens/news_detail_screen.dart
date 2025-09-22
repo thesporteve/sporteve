@@ -11,6 +11,7 @@ import '../providers/news_provider.dart';
 import '../models/news_article.dart';
 import '../widgets/news_card.dart';
 import '../services/bookmark_service.dart';
+import '../services/firebase_image_service.dart';
 
 class NewsDetailScreen extends StatefulWidget {
   final String newsId;
@@ -287,47 +288,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
           children: [
             // Check if image URL exists, otherwise show placeholder
             if (_article!.imageUrl != null && _article!.imageUrl!.isNotEmpty)
-              CachedNetworkImage(
-                imageUrl: _article!.imageUrl!,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                        Theme.of(context).colorScheme.secondary.withOpacity(0.3),
-                      ],
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.sports,
-                        size: 64,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'SportEve',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onPrimary,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
+              _buildDetailNetworkImage()
             else
               _buildPlaceholderBackground(),
             
@@ -596,6 +557,75 @@ Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
       print('Error sharing article: $e');
     }
   }
+
+  /// Enhanced network image builder for detail screen with Firebase Storage optimization
+  Widget _buildDetailNetworkImage() {
+    final imageUrl = _article!.imageUrl!;
+    
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      fit: BoxFit.cover,
+      
+      // Enhanced caching configuration
+      cacheKey: FirebaseImageService.generateCacheKey(imageUrl, _article!.id, prefix: 'detail'),
+      memCacheWidth: FirebaseImageService.getMemoryCacheDimensions(isDetail: true)['width'],
+      memCacheHeight: FirebaseImageService.getMemoryCacheDimensions(isDetail: true)['height'],
+      
+      // Loading placeholder with better UX
+      placeholder: (context, url) => Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              Theme.of(context).colorScheme.secondary.withOpacity(0.3),
+            ],
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 48,
+              height: 48,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).colorScheme.onPrimary.withOpacity(0.8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Loading image...',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+      
+      // Enhanced error handling with fallback to placeholder
+      errorWidget: (context, url, error) {
+        // Log the error for debugging Firebase Storage issues
+        FirebaseImageService.logImageError(url, error);
+        
+        // If Firebase Storage URL failed, fallback to placeholder image
+        return _buildPlaceholderBackground();
+      },
+      
+      // Progressive loading for better UX
+      fadeInDuration: const Duration(milliseconds: 500),
+      fadeOutDuration: const Duration(milliseconds: 200),
+      
+      // Network retry configuration for Firebase Storage
+      httpHeaders: FirebaseImageService.getFirebaseStorageHeaders(imageUrl),
+    );
+  }
+
 
   Widget _buildPlaceholderBackground() {
     final newsProvider = Provider.of<NewsProvider>(context, listen: false);

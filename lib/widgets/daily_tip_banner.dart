@@ -27,13 +27,14 @@ class _DailyTipBannerState extends State<DailyTipBanner> {
       final content = await ContentFeedService.instance.getLatestPublishedContent();
       
       if (content != null) {
-        // Check if this content was already dismissed today
+        // Check if this content was already dismissed today OR already read
         final isDismissed = await _isContentDismissedToday(content.id);
+        final isAlreadyRead = await _isContentAlreadyRead(content.id);
         
         if (mounted) {
           setState(() {
             _latestContent = content;
-            _isDismissed = isDismissed;
+            _isDismissed = isDismissed || isAlreadyRead; // Hide if dismissed OR already read
             _isLoading = false;
           });
         }
@@ -67,6 +68,26 @@ class _DailyTipBannerState extends State<DailyTipBanner> {
     }
   }
 
+  Future<bool> _isContentAlreadyRead(String contentId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final readContentKey = 'read_content_$contentId';
+      return prefs.getBool(readContentKey) ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> _markContentAsRead(String contentId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final readContentKey = 'read_content_$contentId';
+      await prefs.setBool(readContentKey, true);
+    } catch (e) {
+      print('Error marking content as read locally: $e');
+    }
+  }
+
   Future<void> _dismissBanner() async {
     if (_latestContent == null) return;
     
@@ -87,11 +108,12 @@ class _DailyTipBannerState extends State<DailyTipBanner> {
   Future<void> _viewTip() async {
     if (_latestContent == null) return;
     
-    // Mark as read
+    // Mark as read both locally and in Firestore
+    await _markContentAsRead(_latestContent!.id);
     ContentFeedService.instance.markContentAsRead(_latestContent!.id);
     
-    // Navigate to tips screen with this content highlighted
-    context.push('/tips-facts?highlight=${_latestContent!.id}');
+    // Navigate to content detail screen instead of tips-facts screen
+    context.push('/content/${_latestContent!.id}', extra: _latestContent);
   }
 
   @override

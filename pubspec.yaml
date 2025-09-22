@@ -3,7 +3,7 @@ description: A modern sports news app built with Flutter
 
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.2+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -50,7 +50,7 @@ dependencies:
   cloud_functions: ^4.7.6
   
   # Local Storage
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.3.2
   
   # URL Launcher
   url_launcher: ^6.2.1
@@ -63,8 +63,8 @@ dependencies:
   widgets_to_image: ^1.0.0
   
   # Device and app info for feedback
-  device_info_plus: ^9.1.0
-  package_info_plus: ^4.2.0
+  device_info_plus: ^10.1.2
+  package_info_plus: ^8.0.2
   
   # Password hashing (for admin auth)
   crypto: ^3.0.3
@@ -73,6 +73,16 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  # Icon and splash screen generators
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.1
+
+# Force newer dependency versions to resolve Android compatibility issues
+dependency_overrides:
+  # Force newer versions that support Android 34+
+  device_info_plus: ^10.1.2
+  package_info_plus: ^8.0.2
+  shared_preferences: ^2.3.2
 
 flutter:
   uses-material-design: true
@@ -80,4 +90,25 @@ flutter:
   assets:
     - logos/
     - images/
+    - assets/
+
+# App Icon Configuration
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: false
+  image_path: "assets/app_icon.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/app_icon.png"
+    background_color: "#FFFFFF"
+    theme_color: "#2196F3"
+  windows:
+    generate: false
+    remove_alpha_ios: true
+
+# Splash Screen Configuration  
+flutter_native_splash:
+  color: "#2196F3"
+  web: false
 

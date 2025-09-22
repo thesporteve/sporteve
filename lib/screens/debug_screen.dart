@@ -165,6 +165,13 @@ class _DebugScreenState extends State<DebugScreen> {
                   child: const Text('Test News Load'),
                 ),
                 ElevatedButton(
+                  onPressed: _clearCacheAndRefresh,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                  ),
+                  child: const Text('Clear Cache'),
+                ),
+                ElevatedButton(
                   onPressed: _copyLogsToClipboard,
                   child: const Text('Copy Logs'),
                 ),
@@ -191,6 +198,19 @@ class _DebugScreenState extends State<DebugScreen> {
             Text('Platform: ${Theme.of(context).platform}'),
             Text('Time: ${DateTime.now().toLocal()}'),
             Text('Firebase Available: ${FirebaseService.instance.isFirebaseAvailable}'),
+            const Divider(),
+            Text('News Cache Info:', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Consumer<NewsProvider>(
+              builder: (context, newsProvider, child) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${newsProvider.getCacheInfo()}'),
+                    Text('Current Articles: ${newsProvider.articles.length}'),
+                  ],
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -274,11 +294,32 @@ class _DebugScreenState extends State<DebugScreen> {
     DebugLogger.instance.log('🧪 Manual news loading test started');
     try {
       final newsProvider = context.read<NewsProvider>();
-      await newsProvider.loadNews();
+      await newsProvider.loadNews(forceRefresh: true); // Force refresh to bypass cache
       DebugLogger.instance.log('✅ News loaded: ${newsProvider.articles.length} articles');
       setState(() {});
     } catch (e) {
       DebugLogger.instance.log('❌ Manual news test failed: $e');
+    }
+  }
+
+  Future<void> _clearCacheAndRefresh() async {
+    DebugLogger.instance.log('🧹 Clearing news cache and refreshing...');
+    try {
+      final newsProvider = context.read<NewsProvider>();
+      await newsProvider.clearCacheAndRefresh();
+      DebugLogger.instance.log('✅ Cache cleared and refreshed: ${newsProvider.articles.length} articles');
+      setState(() {});
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cache cleared and news refreshed!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      DebugLogger.instance.log('❌ Cache clear failed: $e');
     }
   }
 

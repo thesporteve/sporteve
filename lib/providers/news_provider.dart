@@ -20,7 +20,7 @@ class NewsProvider with ChangeNotifier {
   String? _selectedTournamentId;
   String _searchQuery = '';
   DateTime? _lastLoadTime; // Track when articles were last loaded
-  static const Duration _cacheValidDuration = Duration(minutes: 5); // Cache for 5 minutes
+  static const Duration _cacheValidDuration = Duration(minutes: 2); // Cache for 2 minutes (faster updates for live app)
 
   // Getters
   List<NewsArticle> get articles => _articles;
@@ -189,6 +189,31 @@ class NewsProvider with ChangeNotifier {
       print('Failed to increment article views: ${e.toString()}');
       // Don't throw error - view tracking should be non-blocking
     }
+  }
+
+  /// Clear all cached data and force fresh load
+  Future<void> clearCacheAndRefresh() async {
+    DebugLogger.instance.logInfo('NewsProvider', 'Clearing cache and forcing refresh...');
+    _originalArticles.clear();
+    _articles.clear();
+    _lastLoadTime = null;
+    await loadNews(forceRefresh: true);
+  }
+
+  /// Clear cache without refreshing
+  void clearCache() {
+    DebugLogger.instance.logInfo('NewsProvider', 'Clearing news cache...');
+    _originalArticles.clear();
+    _lastLoadTime = null;
+  }
+
+  /// Get cache info for debugging
+  String getCacheInfo() {
+    if (_lastLoadTime == null) {
+      return 'No cached data';
+    }
+    final cacheAge = DateTime.now().difference(_lastLoadTime!);
+    return 'Cache age: ${cacheAge.inMinutes}m ${cacheAge.inSeconds % 60}s (${_originalArticles.length} articles)';
   }
 
   /// Increment like count for a news article

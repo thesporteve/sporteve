@@ -66,7 +66,7 @@ class _BreakingNewsBannerState extends State<BreakingNewsBanner>
           children: [
             // Background Image
             CachedNetworkImage(
-              imageUrl: widget.article.imageUrl,
+              imageUrl: widget.article.imageUrl ?? '',
               width: double.infinity,
               height: 200,
               fit: BoxFit.cover,

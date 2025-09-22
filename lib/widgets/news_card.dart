@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/news_article.dart';
 import '../providers/news_provider.dart';
 import '../services/like_service.dart';
+import '../services/firebase_image_service.dart';
 
 class NewsCard extends StatefulWidget {
   final NewsArticle article;
@@ -267,51 +268,7 @@ class _NewsCardState extends State<NewsCard> {
           if (widget.article.imageUrl == null || widget.article.imageUrl!.isEmpty)
             _buildPlaceholderImage(context)
           else
-            CachedNetworkImage(
-              imageUrl: widget.article.imageUrl!,
-              width: double.infinity,
-              height: widget.isFeatured ? 180 : 260,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Container(
-                height: widget.isFeatured ? 180 : 260,
-                color: Theme.of(context).colorScheme.surface,
-                child: const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              ),
-              errorWidget: (context, url, error) => Container(
-                height: widget.isFeatured ? 180 : 260,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                      Theme.of(context).colorScheme.secondary.withOpacity(0.1),
-                    ],
-                  ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.sports,
-                      size: 48,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'SportEve',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildNetworkImage(context),
           
           // Breaking News Badge (only show on default placeholders, not custom sport images)
           if (widget.article.isBreaking == true && !_hasCustomImage())
@@ -372,6 +329,81 @@ class _NewsCardState extends State<NewsCard> {
       ),
     );
   }
+
+  /// Enhanced network image builder with Firebase Storage optimization and better caching
+  Widget _buildNetworkImage(BuildContext context) {
+    final imageUrl = widget.article.imageUrl!;
+    
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      width: double.infinity,
+      height: widget.isFeatured ? 180 : 260,
+      fit: BoxFit.cover,
+      
+      // Enhanced caching configuration
+      cacheKey: FirebaseImageService.generateCacheKey(imageUrl, widget.article.id),
+      memCacheWidth: FirebaseImageService.getMemoryCacheDimensions(isFeatured: widget.isFeatured)['width'],
+      memCacheHeight: FirebaseImageService.getMemoryCacheDimensions(isFeatured: widget.isFeatured)['height'],
+      
+      // Loading placeholder with better UX
+      placeholder: (context, url) => Container(
+        height: widget.isFeatured ? 180 : 260,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.surface,
+              Theme.of(context).colorScheme.surfaceVariant,
+            ],
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Loading image...',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+      
+      // Enhanced error handling with fallback to placeholder
+      errorWidget: (context, url, error) {
+        // Log the error for debugging Firebase Storage issues
+        FirebaseImageService.logImageError(url, error);
+        
+        // If Firebase Storage URL failed, fallback to placeholder image
+        return Container(
+          height: widget.isFeatured ? 180 : 260,
+          child: _buildPlaceholderImage(context),
+        );
+      },
+      
+      // Progressive loading for better UX
+      fadeInDuration: const Duration(milliseconds: 300),
+      fadeOutDuration: const Duration(milliseconds: 100),
+      
+      // Network retry configuration for Firebase Storage
+      httpHeaders: FirebaseImageService.getFirebaseStorageHeaders(imageUrl),
+    );
+  }
+
 
   Widget _buildHeader(BuildContext context) {
     return Row(

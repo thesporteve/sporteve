@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -410,14 +411,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: () => context.go('/debug'),
-            icon: const Icon(Icons.bug_report),
-            label: const Text('Debug Info'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.primary,
+          // Debug button only visible in debug builds
+          if (kDebugMode)
+            OutlinedButton.icon(
+              onPressed: () => context.go('/debug'),
+              icon: const Icon(Icons.bug_report),
+              label: const Text('Debug Info'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.primary,
+              ),
             ),
-          ),
         ],
       ),
     );
