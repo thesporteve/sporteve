@@ -36,17 +36,24 @@ export const processNewsStaging = functions.firestore
     Description: ${data.summary}
     
     Please provide:
-    1. A compelling, SEO-friendly title (50 characters or less)
-    2. A concise description that hooks readers and provides key 
-    information (max 120 chars, 5 lines)
+    1. A compelling, SEO-friendly title (max 60 characters).
+    2. A short description (2–4 sentences, max ~350 characters) that is 
+    engaging, clear, and suitable for quick reading on mobile news cards.
+    3. A long description (1–2 paragraphs, up to 500 words) that expands 
+    on the short version, gives more detail, and feels like a mini-article 
+    for the detailed article view.
     
-    The description should be punchy, engaging, and informative as it 
-    will be used both on news cards and detail pages.
-    Both should end with proper punctuation and avoid unnecessary words.
+    Guidelines:
+    - Use simple, engaging language that sports fans will enjoy.
+    - Avoid unnecessary jargon and filler.
+    - End sentences with proper punctuation.
+    - Keep it factual and neutral (no personal opinions).
+    - Mention athletes, teams, or event names clearly if present.
     
     Format your response as:
-    TITLE: [your curated title]
-    DESCRIPTION: [your curated description]
+    TITLE: [curated title]
+    SHORT_DESCRIPTION: [short version]
+    LONG_DESCRIPTION: [long version]
   `;
 
     try {
@@ -54,33 +61,46 @@ export const processNewsStaging = functions.firestore
         model: "gpt-4o-mini",
         messages: [{role: "user", content: prompt}],
         temperature: 0.7,
-        max_tokens: 300, // Reduced since we only need title and description
+        max_tokens: 800, // Increased for both short and long descriptions
       });
 
       const curatedText = response.choices[0].message?.content ?? "";
 
-      // Parse the response to extract title and description only
+      // Parse the response to extract title, short and long descriptions
       const titleMatch = curatedText.match(
-        /TITLE:\s*(.+?)(?=\n|DESCRIPTION:|$)/i
+        /TITLE:\s*(.+?)(?=\n|SHORT_DESCRIPTION:|LONG_DESCRIPTION:|$)/i
       );
-      const descriptionMatch = curatedText.match(
-        /DESCRIPTION:\s*([\s\S]*?)$/i
+      const shortDescriptionMatch = curatedText.match(
+        /SHORT_DESCRIPTION:\s*([\s\S]*?)(?=\n\s*LONG_DESCRIPTION:|$)/i
+      );
+      const longDescriptionMatch = curatedText.match(
+        /LONG_DESCRIPTION:\s*([\s\S]*?)$/i
       );
 
       const curatedTitle = titleMatch?.[1]?.trim() || data.title;
-      let curatedDescription = descriptionMatch?.[1]?.trim() || data.summary;
+      let curatedShortDescription = shortDescriptionMatch?.[1]?.trim() ||
+        data.summary;
+      let curatedLongDescription = longDescriptionMatch?.[1]?.trim() ||
+        data.summary;
 
-      // Ensure description fits in mobile UI (max 120 characters)
-      if (curatedDescription.length > 120) {
-        curatedDescription = curatedDescription.substring(0, 117) + "...";
+      // Ensure short description fits mobile UI cards (max 350 characters)
+      if (curatedShortDescription.length > 350) {
+        curatedShortDescription =
+          curatedShortDescription.substring(0, 347) + "...";
+      }
+
+      // Ensure long description is reasonable (max 3000 chars)
+      if (curatedLongDescription.length > 3000) {
+        curatedLongDescription =
+          curatedLongDescription.substring(0, 2997) + "...";
       }
 
       // Preserve all original fields and add curated content
       const publishedArticle: Record<string, unknown> = {
         ...data, // Preserve all original fields
         title: curatedTitle,
-        summary: curatedDescription, // Using curated description for both
-        content: curatedDescription, // Using same description for content
+        summary: curatedLongDescription, // Long description for mobile
+        content: curatedShortDescription, // Keep short version for reference
         publishedAt: admin.firestore.FieldValue.serverTimestamp(),
         curated_at: admin.firestore.FieldValue.serverTimestamp(),
         status: "published",
@@ -104,17 +124,27 @@ export const processNewsStaging = functions.firestore
       const errorMessage = err instanceof Error ? err.message :
         "Unknown error occurred";
 
-      // Truncate original fields if too long for mobile UI
-      let fallbackDescription = data.summary;
-      if (fallbackDescription && fallbackDescription.length > 120) {
-        fallbackDescription = fallbackDescription.substring(0, 117) + "...";
+      // Truncate original fields appropriately for mobile UI
+      let fallbackShortDescription = data.summary;
+      let fallbackLongDescription = data.summary;
+
+      // Limit short description for cards
+      if (fallbackShortDescription && fallbackShortDescription.length > 350) {
+        fallbackShortDescription =
+          fallbackShortDescription.substring(0, 347) + "...";
+      }
+
+      // For fallback long description, use original or truncate if too long
+      if (fallbackLongDescription && fallbackLongDescription.length > 3000) {
+        fallbackLongDescription =
+          fallbackLongDescription.substring(0, 2997) + "...";
       }
 
       const fallbackArticle: Record<string, unknown> = {
         ...data,
-        // Use original description for both summary and content
-        summary: fallbackDescription, // From original summary
-        content: fallbackDescription, // Using same description for content
+        // Use original description (mobile only reads summary field)
+        summary: fallbackLongDescription, // Long version for detail view
+        content: fallbackShortDescription, // Short version for reference
         publishedAt: admin.firestore.FieldValue.serverTimestamp(),
         status: "published",
         curation_failed: true,

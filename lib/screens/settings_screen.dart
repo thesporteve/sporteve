@@ -318,12 +318,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             decoration: BoxDecoration(
               color: isSelected
                   ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.surface,
+                  : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: isSelected
                     ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                    : Theme.of(context).colorScheme.outline.withOpacity(0.6),
+                width: isSelected ? 2 : 1,
               ),
             ),
             child: Text(
@@ -331,8 +332,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: isSelected
                     ? Theme.of(context).colorScheme.onPrimary
-                    : Theme.of(context).colorScheme.onSurface,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
           ),

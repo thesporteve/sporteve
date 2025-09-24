@@ -229,26 +229,15 @@ class _NewsCardState extends State<NewsCard> {
             top: 8,
             right: 8,
             child: Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(12),
+                color: Theme.of(context).colorScheme.secondary.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.swipe_left_alt,
-                    size: 14,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.open_in_browser,
-                    size: 12,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
-                ],
+              child: Icon(
+                Icons.open_in_browser,
+                size: 12,
+                color: Theme.of(context).colorScheme.onSecondary,
               ),
             ),
           ),
@@ -299,7 +288,7 @@ class _NewsCardState extends State<NewsCard> {
           if (!_hasCustomImage())
             Positioned(
               top: 12,
-              right: 12,
+              right: widget.article.sourceUrl != null && widget.article.sourceUrl!.isNotEmpty ? 36 : 12, // Adjust for swipe indicator
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(

@@ -330,9 +330,9 @@ class _SearchScreenState extends State<SearchScreen> {
                 // App Bar with Search
                 _buildSearchAppBar(),
                 
-                // Category Filters (only show when searching)
-                if (_searchController.text.isNotEmpty && !_showSuggestions)
-                  _buildCategoryFilters(),
+                // Category Filters (temporarily hidden)
+                // if (_searchController.text.isNotEmpty && !_showSuggestions)
+                //   _buildCategoryFilters(),
                 
                 // Search Results
                 Expanded(
@@ -361,7 +361,10 @@ class _SearchScreenState extends State<SearchScreen> {
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: Icon(
+                  Icons.arrow_back, 
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
                 onPressed: () {
                   // Clear search before going back
                   context.read<NewsProvider>().clearSearch();
@@ -371,7 +374,7 @@ class _SearchScreenState extends State<SearchScreen> {
               Text(
                 'Search',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -652,29 +655,30 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildNoResultsState() {
-    return Center(
+    return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
+            const SizedBox(height: 60), // Add top spacing instead of center alignment
             Icon(
               Icons.search_off,
               size: 80,
-              color: Colors.grey[400],
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
             ),
             const SizedBox(height: 16),
             Text(
               'No Results Found',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               'No articles found for "${_searchController.text}"',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[400],
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -689,8 +693,11 @@ class _SearchScreenState extends State<SearchScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF2A2A2A),
+                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -698,14 +705,15 @@ class _SearchScreenState extends State<SearchScreen> {
                   Text(
                     'Search Tips:',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     '• Check your spelling\n• Try different keywords\n• Use broader terms\n• Remove filters if applied',
-                    style: TextStyle(
-                      color: Colors.grey[400],
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                       fontSize: 12,
                     ),
                   ),

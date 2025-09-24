@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../providers/news_provider.dart';
 import '../providers/settings_provider.dart';
@@ -239,6 +240,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             setState(() {
                               _currentPage = index;
                             });
+                            // Preload adjacent images for faster loading
+                            _preloadAdjacentImages(articles, index);
                           },
                           itemCount: articles.length,
                           itemBuilder: (context, index) {
@@ -422,6 +425,33 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  /// Preload images for adjacent articles to improve loading speed
+  void _preloadAdjacentImages(List<NewsArticle> articles, int currentIndex) {
+    // Preload next image (prioritize next since users swipe up)
+    if (currentIndex + 1 < articles.length) {
+      final nextArticle = articles[currentIndex + 1];
+      if (nextArticle.imageUrl != null && nextArticle.imageUrl!.isNotEmpty) {
+        try {
+          precacheImage(CachedNetworkImageProvider(nextArticle.imageUrl!), context);
+        } catch (e) {
+          print('Error preloading next image: $e');
+        }
+      }
+    }
+    
+    // Preload previous image (lower priority)
+    if (currentIndex - 1 >= 0) {
+      final prevArticle = articles[currentIndex - 1];
+      if (prevArticle.imageUrl != null && prevArticle.imageUrl!.isNotEmpty) {
+        try {
+          precacheImage(CachedNetworkImageProvider(prevArticle.imageUrl!), context);
+        } catch (e) {
+          print('Error preloading previous image: $e');
+        }
+      }
+    }
   }
 
 }

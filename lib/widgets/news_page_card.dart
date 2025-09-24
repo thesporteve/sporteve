@@ -4,12 +4,14 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../models/news_article.dart';
 import '../utils/sports_icons.dart';
 import '../services/bookmark_service.dart';
 import '../services/like_service.dart';
 import '../providers/news_provider.dart';
+import '../services/firebase_image_service.dart';
 
 class NewsPageCard extends StatefulWidget {
   final NewsArticle article;
@@ -328,13 +330,8 @@ Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
                   
                   const SizedBox(height: 8),
                   
-                  // Source
-                  _buildSource(),
-                  
-                  const SizedBox(height: 8),
-                  
-                  // Action Buttons
-                  _buildActionButtons(),
+                  // Source and Action Buttons in same row
+                  _buildSourceAndActions(),
                 ],
               ),
             ),
@@ -349,8 +346,75 @@ Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
     final category = widget.article.category.toLowerCase();
     final sportDisplayName = SportsIcons.getSportDisplayName(widget.article.category);
 
-    // Always try to load custom images first, with automatic fallback to icons
+    // Check if article has imageUrl first, then fallback to custom images
+    if (widget.article.imageUrl != null && widget.article.imageUrl!.isNotEmpty) {
+      return _buildNetworkImage();
+    }
+    
+    // Fallback to custom athlete/sport images
     return _buildSportsImage(category, sportDisplayName);
+  }
+
+  Widget _buildNetworkImage() {
+    final imageUrl = widget.article.imageUrl!;
+    
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      width: double.infinity,
+      height: 160,
+      fit: BoxFit.cover,
+      
+      // Optimized caching configuration for faster loading
+      cacheKey: FirebaseImageService.generateCacheKey(imageUrl, widget.article.id, prefix: 'page_card'),
+      memCacheWidth: 300, // Optimized for 160px height display
+      memCacheHeight: 180, // Match display aspect ratio
+      maxWidthDiskCache: 400, // Smaller cache for faster access
+      maxHeightDiskCache: 240,
+      
+      // Faster loading with immediate display
+      placeholder: (context, url) => Container(
+        height: 160,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        ),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Theme.of(context).colorScheme.primary.withOpacity(0.6),
+              ),
+            ),
+          ),
+        ),
+      ),
+      
+      // Error handling with fallback to sport images
+      errorWidget: (context, url, error) {
+        // Log the error for debugging
+        FirebaseImageService.logImageError(url, error);
+        print('🚨 NewsPageCard Image Load Error: $url | Error: $error');
+        
+        // Fallback to sport/athlete images
+        final category = widget.article.category.toLowerCase();
+        final sportDisplayName = SportsIcons.getSportDisplayName(widget.article.category);
+        return _buildSportsImage(category, sportDisplayName);
+      },
+      
+      // Faster progressive loading
+      fadeInDuration: const Duration(milliseconds: 200), // Reduced from 300ms
+      fadeOutDuration: const Duration(milliseconds: 50),  // Reduced from 100ms
+      
+      // Network optimization headers
+      httpHeaders: {
+        ...?FirebaseImageService.getFirebaseStorageHeaders(imageUrl),
+        'Cache-Control': 'public, max-age=86400', // 24 hour cache
+        'Accept': 'image/webp,image/jpeg,*/*', // Prefer faster formats
+      },
+    );
   }
 
   Widget _buildSportsImage(String category, String sportDisplayName) {
@@ -457,13 +521,24 @@ Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
   }
 
   Widget _buildCategory() {
-    return Text(
-      _formatCategory(widget.article.category),
-      style: TextStyle(
-        color: Theme.of(context).colorScheme.primary,
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.3,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        _formatCategory(widget.article.category),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.primary,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+        ),
       ),
     );
   }
@@ -509,44 +584,81 @@ Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
   }
 
 
-  Widget _buildSource() {
-    return Column(
+  Widget _buildSourceAndActions() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Source row
-        Row(
-          children: [
-            Text(
-              'Source: ',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                fontSize: 12,
+        // Source section (left side)
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Source row
+              Row(
+                children: [
+                  Text(
+                    'Source: ',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      fontSize: 12,
+                    ),
+                  ),
+                  Flexible(
+                    child: GestureDetector(
+                      onTap: () {
+                        // TODO: Open source website
+                      },
+                      child: Text(
+                        _getSourceName(),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                          fontSize: 12,
+                          decoration: TextDecoration.underline,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            GestureDetector(
-              onTap: () {
-                // TODO: Open source website
-              },
-              child: Text(
-                _getSourceName(),
+              // Timestamp row
+              const SizedBox(height: 2),
+              Text(
+                _formatTimestamp(widget.article.publishedAt),
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                  fontSize: 12,
-                  decoration: TextDecoration.underline,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                  fontSize: 10,
+                  fontStyle: FontStyle.italic,
                 ),
               ),
-            ),
-          ],
-        ),
-        // Timestamp row
-        const SizedBox(height: 2),
-        Text(
-          _formatTimestamp(widget.article.publishedAt),
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
-            fontSize: 10,
-            fontStyle: FontStyle.italic,
+            ],
           ),
+        ),
+        
+        const SizedBox(width: 8),
+        
+        // Action buttons (right side)  
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildActionButton(
+              _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+              _toggleBookmark,
+              isHighlighted: true,
+              isLoading: _isBookmarkLoading,
+            ),
+            const SizedBox(width: 12),
+            _buildActionButton(
+              _isLiked ? Icons.favorite : Icons.favorite_border, 
+              _likeArticle,
+              color: Colors.red,
+              isHighlighted: _isLiked,
+              isLoading: _isLikeLoading,
+            ),
+            const SizedBox(width: 12),
+            _buildActionButton(Icons.share, () => _shareArticle()),
+          ],
         ),
       ],
     );

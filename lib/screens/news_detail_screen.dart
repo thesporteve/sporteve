@@ -365,7 +365,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
             borderRadius: BorderRadius.circular(16),
           ),
           child: Text(
-            _article!.category.toUpperCase(),
+            _formatCategory(_article!.category),
             style: TextStyle(
               color: Theme.of(context).colorScheme.primary,
               fontSize: 12,
@@ -556,6 +556,17 @@ Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
     } catch (e) {
       print('Error sharing article: $e');
     }
+  }
+
+  /// Format category name for better display (fixes underscores and capitalization)
+  String _formatCategory(String category) {
+    return category
+        .replaceAll('_', ' ')  // Replace underscores with spaces
+        .split(' ')
+        .map((word) => word.isNotEmpty 
+            ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+            : word)
+        .join(' ');
   }
 
   /// Enhanced network image builder for detail screen with Firebase Storage optimization
