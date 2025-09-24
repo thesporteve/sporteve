@@ -199,7 +199,7 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
         id: widget.article?.id ?? '',
         title: _titleController.text.trim(),
         summary: _summaryController.text.trim(),
-        content: _contentController.text.trim(),
+        content: _summaryController.text.trim(), // Using description for both summary and content for first iteration
         author: _authorController.text.trim(),
         publishedAt: widget.article?.publishedAt ?? DateTime.now(),
         category: _selectedCategory,
@@ -408,26 +408,26 @@ class _NewsArticleFormState extends State<NewsArticleForm> {
               ),
               const SizedBox(height: 16),
 
-              // Summary (Full article content - detail page only)
-              TextFormField(
-                controller: _contentController,
-                decoration: const InputDecoration(
-                  labelText: 'Summary (Shows only on detail page)',
-                  hintText: 'Complete article content for detail page (min 50 chars)',
-                  alignLabelWithHint: true,
-                ),
-                maxLines: 5,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Summary is required';
-                  }
-                  if (value.trim().length < 50) {
-                    return 'Summary must be at least 50 characters';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
+              // Summary field hidden for first iteration - using Description only
+              // TextFormField(
+              //   controller: _contentController,
+              //   decoration: const InputDecoration(
+              //     labelText: 'Summary (Shows only on detail page)',
+              //     hintText: 'Complete article content for detail page (min 50 chars)',
+              //     alignLabelWithHint: true,
+              //   ),
+              //   maxLines: 5,
+              //   validator: (value) {
+              //     if (value == null || value.trim().isEmpty) {
+              //       return 'Summary is required';
+              //     }
+              //     if (value.trim().length < 50) {
+              //       return 'Summary must be at least 50 characters';
+              //     }
+              //     return null;
+              //   },
+              // ),
+              // const SizedBox(height: 16),
 
               // Author and Category Row
               Row(

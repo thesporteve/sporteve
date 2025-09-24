@@ -62,6 +62,12 @@ android {
         pickFirst("**/libc++_shared.so")
         pickFirst("**/libjsc.so")
     }
+    
+    // Suppress dependency metadata info to reduce APK size
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
 }
 
 flutter {

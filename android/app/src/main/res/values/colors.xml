@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- SportEve notification color - primary blue -->
+    <color name="notification_color">#1976D2</color>
+    
+    <!-- Additional colors for the app -->
+    <color name="primary_color">#1976D2</color>
+    <color name="primary_dark_color">#1565C0</color>
+    <color name="accent_color">#FF4081</color>
+</resources>

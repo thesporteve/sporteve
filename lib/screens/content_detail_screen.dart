@@ -546,54 +546,23 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Age Group
-        if (tip.ageGroup.isNotEmpty) ...[
-          _buildSectionTitle('Recommended Age Group'),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              tip.ageGroup,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSecondaryContainer,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-        
         // Benefits
         if (tip.benefits.isNotEmpty) ...[
           _buildSectionTitle('Key Benefits'),
           const SizedBox(height: 12),
-          ...tip.benefits.asMap().entries.map((entry) {
-            final index = entry.key;
-            final benefit = entry.value;
+          ...tip.benefits.map((benefit) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 24,
-                    height: 24,
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(top: 6),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.primary,
                       shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${index + 1}',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
                     ),
                   ),
                   const SizedBox(width: 12),

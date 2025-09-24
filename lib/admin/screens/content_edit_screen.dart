@@ -32,6 +32,9 @@ class _ContentEditScreenState extends State<ContentEditScreen> {
   final TextEditingController _factController = TextEditingController();
   final TextEditingController _detailsController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
+  final TextEditingController _benefitsController = TextEditingController();
+  final TextEditingController _ageGroupController = TextEditingController();
+  final TextEditingController _categoryController = TextEditingController();
   
   // For trivia options
   List<TextEditingController> _optionControllers = [];
@@ -70,6 +73,8 @@ class _ContentEditScreenState extends State<ContentEditScreen> {
         if (parentTipContent != null) {
           _titleController.text = parentTipContent.title;
           _contentController.text = parentTipContent.content;
+          _benefitsController.text = parentTipContent.benefits.join('\n');
+          _ageGroupController.text = parentTipContent.ageGroup;
         }
         break;
         
@@ -78,6 +83,7 @@ class _ContentEditScreenState extends State<ContentEditScreen> {
         if (didYouKnowContent != null) {
           _factController.text = didYouKnowContent.fact;
           _detailsController.text = didYouKnowContent.details;
+          _categoryController.text = didYouKnowContent.category;
         }
         break;
     }
@@ -91,6 +97,9 @@ class _ContentEditScreenState extends State<ContentEditScreen> {
     _factController.dispose();
     _detailsController.dispose();
     _contentController.dispose();
+    _benefitsController.dispose();
+    _ageGroupController.dispose();
+    _categoryController.dispose();
     
     for (final controller in _optionControllers) {
       controller.dispose();
@@ -120,21 +129,27 @@ class _ContentEditScreenState extends State<ContentEditScreen> {
           break;
           
         case ContentType.parentTip:
-          final parentTipContent = widget.content.parentTipContent;
+          final benefits = _benefitsController.text.trim().isNotEmpty 
+              ? _benefitsController.text.split('\n').where((b) => b.trim().isNotEmpty).toList()
+              : <String>[];
+          
           updatedContent = {
             'title': _titleController.text.trim(),
             'content': _contentController.text.trim(),
-            'benefits': parentTipContent?.benefits ?? [], // Keep existing benefits
-            'age_group': parentTipContent?.ageGroup ?? '6-16',
+            'benefits': benefits,
+            'age_group': _ageGroupController.text.trim().isNotEmpty 
+                ? _ageGroupController.text.trim() 
+                : '6-16',
           };
           break;
           
         case ContentType.didYouKnow:
-          final didYouKnowContent = widget.content.didYouKnowContent;
           updatedContent = {
             'fact': _factController.text.trim(),
             'details': _detailsController.text.trim(),
-            'category': didYouKnowContent?.category ?? 'general',
+            'category': _categoryController.text.trim().isNotEmpty 
+                ? _categoryController.text.trim() 
+                : 'general',
           };
           break;
       }
@@ -295,6 +310,36 @@ class _ContentEditScreenState extends State<ContentEditScreen> {
             return null;
           },
         ),
+        const SizedBox(height: 16),
+        
+        // Benefits
+        TextFormField(
+          controller: _benefitsController,
+          decoration: const InputDecoration(
+            labelText: 'Benefits (Optional)',
+            border: OutlineInputBorder(),
+            hintText: 'List benefits, one per line:\nImproves teamwork\nBuilds social skills\nEnhances physical fitness',
+            alignLabelWithHint: true,
+          ),
+          maxLines: 4,
+        ),
+        const SizedBox(height: 16),
+        
+        // Age Group
+        TextFormField(
+          controller: _ageGroupController,
+          decoration: const InputDecoration(
+            labelText: 'Age Group',
+            border: OutlineInputBorder(),
+            hintText: 'e.g., "8-16" or "All ages"',
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Age Group is required';
+            }
+            return null;
+          },
+        ),
       ],
     );
   }
@@ -334,6 +379,23 @@ class _ContentEditScreenState extends State<ContentEditScreen> {
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
               return 'Details are required';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        
+        // Category
+        TextFormField(
+          controller: _categoryController,
+          decoration: const InputDecoration(
+            labelText: 'Category',
+            border: OutlineInputBorder(),
+            hintText: 'e.g., "records", "history", "equipment", "players"',
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Category is required';
             }
             return null;
           },

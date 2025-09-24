@@ -260,6 +260,9 @@ class _NewsCardState extends State<NewsCard> {
   }
 
   Widget _buildImage(BuildContext context) {
+    // Debug logging for first article image loading
+    print('🖼️ Article: ${widget.article.title.substring(0, 20)}... | ImageURL: ${widget.article.imageUrl ?? "NULL"}');
+    
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
       child: Stack(
@@ -340,8 +343,8 @@ class _NewsCardState extends State<NewsCard> {
       height: widget.isFeatured ? 180 : 260,
       fit: BoxFit.cover,
       
-      // Enhanced caching configuration
-      cacheKey: FirebaseImageService.generateCacheKey(imageUrl, widget.article.id),
+      // Enhanced caching configuration - aligned with detail screen
+      cacheKey: FirebaseImageService.generateCacheKey(imageUrl, widget.article.id, prefix: 'card'),
       memCacheWidth: FirebaseImageService.getMemoryCacheDimensions(isFeatured: widget.isFeatured)['width'],
       memCacheHeight: FirebaseImageService.getMemoryCacheDimensions(isFeatured: widget.isFeatured)['height'],
       
@@ -387,6 +390,7 @@ class _NewsCardState extends State<NewsCard> {
       errorWidget: (context, url, error) {
         // Log the error for debugging Firebase Storage issues
         FirebaseImageService.logImageError(url, error);
+        print('🚨 Image Load Error: $url | Error: $error');
         
         // If Firebase Storage URL failed, fallback to placeholder image
         return Container(
@@ -772,8 +776,7 @@ Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
   }
 
   bool _hasCustomImage() {
-    // Always try to check for custom images - the image loading will handle fallbacks
-    // This ensures overlays are hidden whenever we attempt to show custom sport images
-    return true;
+    // Check if article has a custom image URL
+    return widget.article.imageUrl != null && widget.article.imageUrl!.isNotEmpty;
   }
 }

@@ -270,7 +270,7 @@ class _NewsArticleImageFormState extends State<NewsArticleImageForm> {
         id: widget.article?.id ?? '',
         title: _titleController.text.trim(),
         summary: _summaryController.text.trim(),
-        content: _contentController.text.trim(),
+        content: _summaryController.text.trim(), // Using description for both summary and content for first iteration
         author: _authorController.text.trim(),
         publishedAt: widget.article?.publishedAt ?? DateTime.now(),
         category: _selectedCategory,
@@ -482,27 +482,27 @@ class _NewsArticleImageFormState extends State<NewsArticleImageForm> {
 
               const SizedBox(height: 16),
 
-              // Full Content
-              TextFormField(
-                controller: _contentController,
-                decoration: const InputDecoration(
-                  labelText: 'Full Article Content',
-                  hintText: 'Complete article content (min 200 chars)',
-                  alignLabelWithHint: true,
-                ),
-                maxLines: 20,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Content is required';
-                  }
-                  if (value.trim().length < 200) {
-                    return 'Content must be at least 200 characters';
-                  }
-                  return null;
-                },
-              ),
+              // Full Content field hidden for first iteration - using Description only
+              // TextFormField(
+              //   controller: _contentController,
+              //   decoration: const InputDecoration(
+              //     labelText: 'Full Article Content',
+              //     hintText: 'Complete article content (min 200 chars)',
+              //     alignLabelWithHint: true,
+              //   ),
+              //   maxLines: 20,
+              //   validator: (value) {
+              //     if (value == null || value.trim().isEmpty) {
+              //       return 'Content is required';
+              //     }
+              //     if (value.trim().length < 200) {
+              //       return 'Content must be at least 200 characters';
+              //     }
+              //     return null;
+              //   },
+              // ),
 
-              const SizedBox(height: 16),
+              // const SizedBox(height: 16),
 
               // Author and Category Row
               Row(

@@ -575,32 +575,32 @@ Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Double tap hint
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.touch_app,
-                size: 12,
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Double tap to read',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
-                ),
-              ),
-            ],
-          ),
-        ),
+        // Double tap hint hidden for first iteration
+        // Container(
+        //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        //   decoration: BoxDecoration(
+        //     color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+        //     borderRadius: BorderRadius.circular(12),
+        //   ),
+        //   child: Row(
+        //     mainAxisSize: MainAxisSize.min,
+        //     children: [
+        //       Icon(
+        //         Icons.touch_app,
+        //         size: 12,
+        //         color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+        //       ),
+        //       const SizedBox(width: 4),
+        //       Text(
+        //         'Double tap to read',
+        //         style: TextStyle(
+        //           fontSize: 10,
+        //           color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+        //         ),
+        //       ),
+        //     ],
+        //   ),
+        // ),
         
         // Action buttons
         Row(

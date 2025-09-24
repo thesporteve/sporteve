@@ -430,7 +430,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
   Widget _buildContent() {
     return Text(
-      _article!.content,
+      _article!.summary, // Using summary (description) field for content in first iteration
       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
         height: 1.6,
         fontSize: 16,

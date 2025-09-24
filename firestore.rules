@@ -51,9 +51,9 @@ service cloud.firestore {
       allow create, update, delete: if true; // Admin operations
     }
     
-    // User Feedback - Allow users to create and read their own feedback
+    // User Feedback - Allow anonymous feedback submission
     match /user_feedback/{feedbackId} {
-      allow create: if request.auth != null; // Users can create feedback
+      allow create: if true; // Allow anonymous feedback submission
       allow read: if true; // Allow reading for analytics
     }
     

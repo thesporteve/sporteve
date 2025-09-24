@@ -205,10 +205,25 @@ class _SearchScreenState extends State<SearchScreen> {
   }
   
   void _selectCategory(String category) {
+    // Clear search text when category is selected to hide chips below search bar
+    _searchController.clear();
+    _searchFocusNode.unfocus();
+    
     setState(() {
       _selectedCategory = category;
-      _filteredResults = _applyFilters(_searchResults);
+      _showSuggestions = false;
     });
+    
+    // If not "All", perform a search for articles in that category
+    if (category != 'All') {
+      _performSearchByCategory(category);
+    } else {
+      // Clear results when "All" is selected
+      setState(() {
+        _searchResults = [];
+        _filteredResults = [];
+      });
+    }
   }
 
   void _onSearchChanged(String value) {
@@ -233,6 +248,43 @@ class _SearchScreenState extends State<SearchScreen> {
     _searchController.text = suggestion;
     _performSearch(suggestion);
     _searchFocusNode.unfocus();
+  }
+
+  Future<void> _performSearchByCategory(String category) async {
+    setState(() {
+      _isSearching = true;
+      _searchStartTime = DateTime.now();
+    });
+
+    try {
+      // Use NewsProvider's cached articles for faster search
+      final newsProvider = context.read<NewsProvider>();
+      
+      // If we don't have cached articles, load them first
+      if (newsProvider.articles.isEmpty) {
+        await newsProvider.loadNews();
+      }
+      
+      // Filter by category only
+      final results = newsProvider.articles.where((article) =>
+          article.category.toLowerCase() == category.toLowerCase()).toList();
+      
+      if (mounted) {
+        setState(() {
+          _searchResults = results;
+          _filteredResults = results; // No need to apply additional filters since we're already filtering by category
+          _isSearching = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _searchResults = [];
+          _filteredResults = [];
+          _isSearching = false;
+        });
+      }
+    }
   }
 
   void _loadSupportedSports() {
@@ -331,20 +383,24 @@ class _SearchScreenState extends State<SearchScreen> {
           // Search Bar
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF2A2A2A),
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                width: 1,
+              ),
             ),
             child: TextField(
               controller: _searchController,
               focusNode: _searchFocusNode,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: 'Search sports news...',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
+                hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+                prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: Icon(Icons.clear, color: Colors.grey[400]),
+                        icon: Icon(Icons.clear, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
                         onPressed: () {
                           _searchController.clear();
                           _performSearch('');
@@ -382,11 +438,14 @@ class _SearchScreenState extends State<SearchScreen> {
               label: Text(category),
               selected: isSelected,
               onSelected: (_) => _selectCategory(category),
-              backgroundColor: const Color(0xFF2A2A2A),
-              selectedColor: const Color(0xFF4CAF50),
+              backgroundColor: Colors.transparent,
+              selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+              checkmarkColor: Theme.of(context).colorScheme.primary,
               labelStyle: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey[400],
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected 
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurface,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
           );
@@ -402,11 +461,15 @@ class _SearchScreenState extends State<SearchScreen> {
       right: 16,
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF2A2A2A),
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.shadow.withOpacity(0.3),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -417,7 +480,7 @@ class _SearchScreenState extends State<SearchScreen> {
           padding: const EdgeInsets.symmetric(vertical: 8),
           itemCount: _searchSuggestions.length,
           separatorBuilder: (context, index) => Divider(
-            color: Colors.grey[800],
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
             height: 1,
           ),
           itemBuilder: (context, index) {
@@ -425,12 +488,12 @@ class _SearchScreenState extends State<SearchScreen> {
             return ListTile(
               leading: Icon(
                 Icons.search,
-                color: Colors.grey[400],
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                 size: 20,
               ),
               title: Text(
                 suggestion,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
               ),
               onTap: () => _selectSuggestion(suggestion),
               dense: true,
@@ -447,9 +510,9 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     if (_isSearching) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
+          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
         ),
       );
     }
@@ -471,7 +534,7 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Text(
             '${_filteredResults.length} results found in ${searchTime.toStringAsFixed(2)}s',
             style: TextStyle(
-              color: Colors.grey[400],
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
               fontSize: 12,
             ),
           ),
@@ -509,13 +572,13 @@ class _SearchScreenState extends State<SearchScreen> {
                 Icon(
                   Icons.search,
                   size: 60,
-                  color: Colors.grey[400],
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Discover Sports News',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -523,7 +586,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 Text(
                   'Find articles, match updates, and breaking news',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[400],
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -531,28 +594,8 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           
-          const SizedBox(height: 32),
-          
-          // Quick Categories
-          Text(
-            'Browse by Sport',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _categories.skip(1).map((category) => ActionChip(
-              label: Text(category),
-              onPressed: () => _selectSuggestion(category.toLowerCase()),
-              backgroundColor: const Color(0xFF2A2A2A),
-              labelStyle: TextStyle(color: Colors.grey[300]),
-              side: BorderSide(color: Colors.grey[600]!),
-            )).toList(),
-          ),
+          // Browse by Sport section hidden for simplified search experience
+          // const SizedBox(height: 32),
           
           
           // Recent Searches (if any)
@@ -564,7 +607,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 Text(
                   'Recent Searches',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -572,7 +615,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   onPressed: _clearRecentSearches,
                   child: Text(
                     'Clear',
-                    style: TextStyle(color: Colors.grey[400]),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
                   ),
                 ),
               ],
@@ -580,12 +623,12 @@ class _SearchScreenState extends State<SearchScreen> {
             const SizedBox(height: 12),
             Column(
               children: _recentSearches.map((recent) => ListTile(
-                leading: Icon(Icons.history, color: Colors.grey[400], size: 20),
+                leading: Icon(Icons.history, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), size: 20),
                 title: Text(
                   recent,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                 ),
-                trailing: Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 16),
+                trailing: Icon(Icons.arrow_forward_ios, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), size: 16),
                 onTap: () => _selectSuggestion(recent),
                 dense: true,
               )).toList(),
@@ -637,30 +680,8 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             const SizedBox(height: 24),
             
-            // Search suggestions
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Try searching for:',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _categories.skip(1).take(4).map((suggestion) => ActionChip(
-                    label: Text(suggestion),
-                    onPressed: () => _selectSuggestion(suggestion.toLowerCase()),
-                    backgroundColor: const Color(0xFF2A2A2A),
-                    labelStyle: TextStyle(color: Colors.grey[300]),
-                    side: BorderSide(color: Colors.grey[600]!),
-                  )).toList(),
-                ),
-              ],
-            ),
+            // Search suggestions hidden for simplified search experience
+            // Column(...)
             
             const SizedBox(height: 16),
             

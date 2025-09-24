@@ -99,13 +99,16 @@ class NotificationService {
       // Subscribe to breaking news
       await _firebaseService.messaging.subscribeToTopic('breaking_news');
       
-      // Subscribe to AI content notifications
-      await _firebaseService.messaging.subscribeToTopic('sports_content');
+      // Subscribe to specific content type topics to avoid duplicates
+      // These match the primary topics used in Cloud Functions
       await _firebaseService.messaging.subscribeToTopic('content_parent_tip');
       await _firebaseService.messaging.subscribeToTopic('content_did_you_know');
       await _firebaseService.messaging.subscribeToTopic('content_trivia');
       
-      print('Subscribed to default topics (news + content feeds)');
+      // Note: Removed 'sports_content' general topic to prevent duplicate notifications
+      // since users will get notifications through specific content type topics
+      
+      print('Subscribed to optimized topics to prevent duplicate notifications');
     } catch (e) {
       print('Failed to subscribe to default topics: $e');
     }

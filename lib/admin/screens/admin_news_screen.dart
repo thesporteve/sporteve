@@ -177,6 +177,16 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
                     _addArticleWithImage();
                   },
                 ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.notifications_active, color: Colors.orange),
+                  title: const Text('🧪 Test Notification'),
+                  subtitle: const Text('Send test notification to debug issues'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _testNotification();
+                  },
+                ),
               ],
               const SizedBox(height: 10),
             ],

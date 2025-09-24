@@ -30,19 +30,21 @@ class FeedbackService {
     String? additionalComments,
   }) async {
     try {
+      // Get current user if available, otherwise use anonymous feedback
       final user = _auth.currentUser;
-      if (user == null) {
-        throw Exception('User not authenticated');
-      }
+      final userId = user?.uid ?? 'anonymous_${DateTime.now().millisecondsSinceEpoch}';
+      final userEmail = user?.email ?? '';
+      
+      print('Submitting feedback - User: ${user != null ? 'authenticated' : 'anonymous'}');
 
       // Get device and app info
       final deviceInfo = await _getDeviceInfo();
       final packageInfo = await PackageInfo.fromPlatform();
 
       final feedback = UserFeedback(
-        id: '', // Will be set by Firestore
-        userId: user.uid,
-        userEmail: user.email ?? '',
+        id: 'temp_${DateTime.now().millisecondsSinceEpoch}', // Temporary ID, Firestore will generate the real one
+        userId: userId,
+        userEmail: userEmail,
         overallRating: overallRating,
         favoriteFeature: favoriteFeature,
         mostUsedSports: mostUsedSports,
@@ -62,16 +64,20 @@ class FeedbackService {
       print('Feedback submitted successfully');
 
       // Update user's last feedback date for popup management (non-critical)
-      // Use set with merge to create document if it doesn't exist
-      try {
-        await _firestore.collection('users').doc(user.uid).set({
-          'lastFeedbackDate': Timestamp.fromDate(DateTime.now()),
-          'feedbackCount': FieldValue.increment(1),
-        }, SetOptions(merge: true));
-        print('User feedback tracking updated');
-      } catch (userUpdateError) {
-        print('Warning: Could not update user feedback tracking: $userUpdateError');
-        // Don't fail the entire operation if user tracking fails
+      // Only track for authenticated users
+      if (user != null) {
+        try {
+          await _firestore.collection('users').doc(user.uid).set({
+            'lastFeedbackDate': Timestamp.fromDate(DateTime.now()),
+            'feedbackCount': FieldValue.increment(1),
+          }, SetOptions(merge: true));
+          print('User feedback tracking updated for authenticated user');
+        } catch (userUpdateError) {
+          print('Warning: Could not update user feedback tracking: $userUpdateError');
+          // Don't fail the entire operation if user tracking fails
+        }
+      } else {
+        print('Skipping user tracking for anonymous feedback');
       }
 
       return true;
