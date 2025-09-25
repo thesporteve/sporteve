@@ -399,7 +399,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Your Ultimate Sports News Hub',
+            'Your Daily Sports Pulse',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
             ),

@@ -109,8 +109,12 @@ export const processNewsStaging = functions.firestore
         original_content: data.content, // Keep original content for reference
       };
 
-      // Remove staging-specific fields
+      // Remove staging-specific fields and any conflicting timestamp fields
       delete publishedArticle.submitted_at;
+      // Ensure no old publishedAt conflicts with our new serverTimestamp
+      if (data.publishedAt) {
+        publishedArticle.original_publishedAt = data.publishedAt;
+      }
 
       await db.collection("news_articles").doc(context.params.docId)
         .set(publishedArticle);
@@ -151,7 +155,12 @@ export const processNewsStaging = functions.firestore
         error_message: errorMessage,
       };
 
+      // Remove staging-specific fields and any conflicting timestamp fields
       delete fallbackArticle.submitted_at;
+      // Ensure no old publishedAt conflicts with our new serverTimestamp
+      if (data.publishedAt) {
+        fallbackArticle.original_publishedAt = data.publishedAt;
+      }
 
       await db.collection("news_articles").doc(context.params.docId)
         .set(fallbackArticle);
@@ -355,7 +364,7 @@ export const sendArticleNotification = functions.firestore
       const message = {
         topic: "sports_news",
         notification: {
-          title: `⚽ ${data.category || "Sports"}: ${data.title}`,
+          title: `${data.category || "Sports"}: ${data.title}`,
           body: data.summary || data.description ||
             "New sports article available",
         },
