@@ -85,7 +85,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     ],
                   ),
                   child: Image.asset(
-                    'logos/FinishW.png',
+                    'assets/app_icon.png',
                     fit: BoxFit.contain,
                   ),
                 ),

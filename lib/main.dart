@@ -39,15 +39,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
-  await FirebaseService.instance.initialize();
+  print('🚀 App starting - UI thread free!');
   
-  // Set background message handler
+  // Set background message handler (non-blocking)
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   
-  // Initialize Push Notifications
-  await NotificationService.instance.initialize();
-  
+  // Start app immediately - services will initialize in background
   runApp(const SportEveApp());
 }
 
@@ -56,6 +53,7 @@ class SportEveApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('🏗️ SportEveApp build method called');
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => NewsProvider()),
@@ -71,17 +69,32 @@ class SportEveApp extends StatelessWidget {
             });
           }
           
-          // Set up notification handling and check for pending navigation
+          // Initialize services in background after UI starts
           WidgetsBinding.instance.addPostFrameCallback((_) async {
-            NotificationService.instance.setNotificationTapCallback(() {
-              print('📱 Notification tapped - refreshing news feed...');
-              newsProvider.refresh();
-              // Handle any pending navigation from notification tap
-              _handlePendingNavigation(context);
+            print('🔧 Starting background service initialization...');
+            
+            // Initialize Firebase (non-blocking for UI)
+            FirebaseService.instance.initialize().then((_) {
+              print('✅ Firebase initialization completed in background');
+            }).catchError((e) {
+              print('❌ Firebase initialization failed: $e');
             });
             
-            // Check for pending navigation when app starts
-            await _handlePendingNavigation(context);
+            // Initialize Notifications (non-blocking for UI) 
+            NotificationService.instance.initialize().then((_) {
+              print('✅ Notification service initialized in background');
+              
+              NotificationService.instance.setNotificationTapCallback(() {
+                print('📱 Notification tapped - refreshing news feed...');
+                newsProvider.refresh();
+                _handlePendingNavigation(context);
+              });
+              
+              // Check for pending navigation when app starts
+              _handlePendingNavigation(context);
+            }).catchError((e) {
+              print('❌ Notification service initialization failed: $e');
+            });
           });
           
           return MaterialApp.router(
@@ -101,9 +114,10 @@ class SportEveApp extends StatelessWidget {
 final GoRouter _router = GoRouter(
   initialLocation: '/',
   redirect: (context, state) {
-    final authService = AuthService();
-    final isSignedIn = authService.isSignedIn;
-    final currentLocation = state.matchedLocation;
+    try {
+      final authService = AuthService();
+      final isSignedIn = authService.isSignedIn;
+      final currentLocation = state.matchedLocation;
     
     // Protected routes that require authentication
     final protectedRoutes = ['/profile'];
@@ -127,7 +141,20 @@ final GoRouter _router = GoRouter(
       return '/home';
     }
     
-    return null; // No redirect needed
+      return null; // No redirect needed
+    } catch (e) {
+      // If Firebase isn't ready yet, allow access to splash and public routes
+      print('⚠️ Auth check failed (Firebase not ready): $e');
+      final currentLocation = state.matchedLocation;
+      
+      // Allow access to splash and basic routes when Firebase isn't ready
+      if (currentLocation == '/' || currentLocation == '/home' || currentLocation == '/signin') {
+        return null;
+      }
+      
+      // Redirect to splash if Firebase isn't ready and trying to access other routes
+      return '/';
+    }
   },
   routes: [
     GoRoute(

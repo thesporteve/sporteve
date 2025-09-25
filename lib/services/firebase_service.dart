@@ -36,13 +36,19 @@ class FirebaseService {
     DebugLogger.instance.logInfo('Firebase', 'Starting Firebase initialization...');
     
     try {
-      // Check internet connectivity first
-      await _checkNetworkConnectivity();
+      // Check internet connectivity first (non-blocking)
+      try {
+        await _checkNetworkConnectivity();
+        DebugLogger.instance.logSuccess('Firebase', 'Network connectivity confirmed');
+      } catch (e) {
+        DebugLogger.instance.logWarning('Firebase', 'Network check failed, continuing with offline mode: $e');
+        // Don't block Firebase initialization due to network issues
+      }
       
       DebugLogger.instance.logInfo('Firebase', 'Initializing Firebase app...');
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
-      ).timeout(Duration(seconds: 30));
+      ).timeout(Duration(seconds: 10)); // Reduced for better simulator experience
       
       DebugLogger.instance.logSuccess('Firebase', 'Firebase app initialized successfully');
       
@@ -57,13 +63,24 @@ class FirebaseService {
         DebugLogger.instance.logSuccess('Firebase', 'Firestore offline persistence enabled');
       } catch (e) {
         DebugLogger.instance.logWarning('Firebase', 'Firestore persistence already enabled or not supported: $e');
+        // Don't fail initialization for persistence issues
       }
       
       // Initialize Firebase Functions with proper region
-      _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
+      try {
+        _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
+        DebugLogger.instance.logSuccess('Firebase', 'Firebase Functions initialized');
+      } catch (e) {
+        DebugLogger.instance.logWarning('Firebase', 'Firebase Functions initialization failed: $e');
+      }
       
-      // Test Firestore connection
-      await _testFirestoreConnection();
+      // Test Firestore connection (non-blocking)
+      try {
+        await _testFirestoreConnection();
+      } catch (e) {
+        DebugLogger.instance.logWarning('Firebase', 'Firestore connection test failed, but continuing: $e');
+        // Don't fail initialization for connection test issues
+      }
       
       _initialized = true;
       
@@ -76,7 +93,14 @@ class FirebaseService {
   }
 
   /// Check if Firebase is available
-  bool get isFirebaseAvailable => _initialized && _firestore != null;
+  bool get isFirebaseAvailable {
+    final available = _initialized && _firestore != null;
+    // Only print this occasionally to avoid spam
+    if (!available) {
+      print('🔥 Firebase not ready: initialized=$_initialized, firestore=${_firestore != null}');
+    }
+    return available;
+  }
 
   /// Check network connectivity
   Future<void> _checkNetworkConnectivity() async {
@@ -91,16 +115,18 @@ class FirebaseService {
   /// Native network connectivity check (mobile/desktop only)
   Future<void> _checkNetworkConnectivityNative() async {
     try {
+      DebugLogger.instance.logInfo('Network', 'Testing network connectivity...');
       // This will only run on mobile/desktop where dart:io is available
       final result = await InternetAddress.lookup('google.com')
-          .timeout(Duration(seconds: 10));
+          .timeout(Duration(seconds: 5)); // Reduced timeout
       if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
-        DebugLogger.instance.logSuccess('Network', 'Network connectivity confirmed');
+        DebugLogger.instance.logSuccess('Network', 'Network connectivity confirmed via google.com');
         return;
       }
+      throw Exception('No valid network address found');
     } catch (e) {
-      DebugLogger.instance.logError('Network', 'Network connectivity check failed: $e');
-      throw Exception('No internet connection available');
+      DebugLogger.instance.logWarning('Network', 'Network connectivity check failed: $e');
+      throw Exception('No internet connection available: $e');
     }
   }
 
@@ -111,7 +137,7 @@ class FirebaseService {
       await _firestore!.collection('_test_')
           .limit(1)
           .get()
-          .timeout(Duration(seconds: 15));
+          .timeout(Duration(seconds: 5)); // Reduced for better simulator experience
       DebugLogger.instance.logSuccess('Firestore', 'Firestore connection test successful');
     } catch (e) {
       DebugLogger.instance.logWarning('Firestore', 'Firestore connection test failed (this is normal if no data exists): $e');

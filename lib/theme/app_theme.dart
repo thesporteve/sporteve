@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'safe_fonts.dart';
 
 class AppTheme {
   // Dusk Horizon Color Palette
@@ -49,63 +50,63 @@ class AppTheme {
         outline: Color(0xFFE5E7EB),
         shadow: Color(0xFF000000),
       ),
-      textTheme: GoogleFonts.interTextTheme().copyWith(
-        displayLarge: GoogleFonts.inter(
+      textTheme: SafeFonts.interTextTheme().copyWith(
+        displayLarge: SafeFonts.inter(
           fontSize: 32,
           fontWeight: FontWeight.bold,
           color: lightOnSurface,
         ),
-        displayMedium: GoogleFonts.inter(
+        displayMedium: SafeFonts.inter(
           fontSize: 28,
           fontWeight: FontWeight.bold,
           color: lightOnSurface,
         ),
-        displaySmall: GoogleFonts.inter(
+        displaySmall: SafeFonts.inter(
           fontSize: 24,
           fontWeight: FontWeight.w600,
           color: lightOnSurface,
         ),
-        headlineLarge: GoogleFonts.inter(
+        headlineLarge: SafeFonts.inter(
           fontSize: 22,
           fontWeight: FontWeight.w600,
           color: lightOnSurface,
         ),
-        headlineMedium: GoogleFonts.inter(
+        headlineMedium: SafeFonts.inter(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: lightOnSurface,
         ),
-        headlineSmall: GoogleFonts.inter(
+        headlineSmall: SafeFonts.inter(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: lightOnSurface,
         ),
-        titleLarge: GoogleFonts.inter(
+        titleLarge: SafeFonts.inter(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: lightOnSurface,
         ),
-        titleMedium: GoogleFonts.inter(
+        titleMedium: SafeFonts.inter(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: lightOnSurface,
         ),
-        titleSmall: GoogleFonts.inter(
+        titleSmall: SafeFonts.inter(
           fontSize: 12,
           fontWeight: FontWeight.w500,
           color: lightOnSurface,
         ),
-        bodyLarge: GoogleFonts.inter(
+        bodyLarge: SafeFonts.inter(
           fontSize: 16,
           fontWeight: FontWeight.normal,
           color: lightOnSurface,
         ),
-        bodyMedium: GoogleFonts.inter(
+        bodyMedium: SafeFonts.inter(
           fontSize: 14,
           fontWeight: FontWeight.normal,
           color: lightOnSurface,
         ),
-        bodySmall: GoogleFonts.inter(
+        bodySmall: SafeFonts.inter(
           fontSize: 12,
           fontWeight: FontWeight.normal,
           color: lightOnSurface,
@@ -116,7 +117,7 @@ class AppTheme {
         foregroundColor: lightOnSurface,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.inter(
+        titleTextStyle: SafeFonts.inter(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: lightOnSurface,
@@ -159,63 +160,63 @@ class AppTheme {
         onBackground: darkOnBackground,
         onSurface: darkOnSurface,
       ),
-      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
-        displayLarge: GoogleFonts.inter(
+      textTheme: SafeFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
+        displayLarge: SafeFonts.inter(
           fontSize: 32,
           fontWeight: FontWeight.bold,
           color: darkOnSurface,
         ),
-        displayMedium: GoogleFonts.inter(
+        displayMedium: SafeFonts.inter(
           fontSize: 28,
           fontWeight: FontWeight.bold,
           color: darkOnSurface,
         ),
-        displaySmall: GoogleFonts.inter(
+        displaySmall: SafeFonts.inter(
           fontSize: 24,
           fontWeight: FontWeight.w600,
           color: darkOnSurface,
         ),
-        headlineLarge: GoogleFonts.inter(
+        headlineLarge: SafeFonts.inter(
           fontSize: 22,
           fontWeight: FontWeight.w600,
           color: darkOnSurface,
         ),
-        headlineMedium: GoogleFonts.inter(
+        headlineMedium: SafeFonts.inter(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: darkOnSurface,
         ),
-        headlineSmall: GoogleFonts.inter(
+        headlineSmall: SafeFonts.inter(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: darkOnSurface,
         ),
-        titleLarge: GoogleFonts.inter(
+        titleLarge: SafeFonts.inter(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: darkOnSurface,
         ),
-        titleMedium: GoogleFonts.inter(
+        titleMedium: SafeFonts.inter(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: darkOnSurface,
         ),
-        titleSmall: GoogleFonts.inter(
+        titleSmall: SafeFonts.inter(
           fontSize: 12,
           fontWeight: FontWeight.w500,
           color: darkOnSurface,
         ),
-        bodyLarge: GoogleFonts.inter(
+        bodyLarge: SafeFonts.inter(
           fontSize: 16,
           fontWeight: FontWeight.normal,
           color: darkOnSurface,
         ),
-        bodyMedium: GoogleFonts.inter(
+        bodyMedium: SafeFonts.inter(
           fontSize: 14,
           fontWeight: FontWeight.normal,
           color: darkOnSurface,
         ),
-        bodySmall: GoogleFonts.inter(
+        bodySmall: SafeFonts.inter(
           fontSize: 12,
           fontWeight: FontWeight.normal,
           color: darkOnSurface,
@@ -226,7 +227,7 @@ class AppTheme {
         foregroundColor: darkOnSurface,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.inter(
+        titleTextStyle: SafeFonts.inter(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: darkOnSurface,

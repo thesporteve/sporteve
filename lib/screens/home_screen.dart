@@ -29,8 +29,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    print('🏠 HomeScreen initState called');
     _loadUserData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      print('🏠 PostFrameCallback - calling NewsProvider.loadNews()');
       context.read<NewsProvider>().loadNews();
     });
   }
@@ -45,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -53,12 +56,37 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    print('🏠 HomeScreen build method called');
+    return PopScope(
+      // Only allow app to close if we're at the top (first article)
+      canPop: _currentPage == 0,
+      onPopInvoked: (didPop) async {
+        if (!didPop && _currentPage > 0) {
+          // User pressed back while scrolled down - scroll to top and refresh
+          print('🔄 Back pressed while scrolled down - going to top and refreshing');
+          
+          // Animate back to top smoothly
+          await _pageController.animateToPage(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          
+          // Trigger non-blocking refresh for fresh content
+          if (mounted) {
+            context.read<NewsProvider>().refreshInBackground();
+          }
+        }
+        // If didPop is true or _currentPage == 0, normal back behavior happens (app backgrounds)
+      },
+      child: Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         child: Consumer2<NewsProvider, SettingsProvider>(
           builder: (context, newsProvider, settingsProvider, child) {
+            print('🏠 HomeScreen Consumer builder - isLoading: ${newsProvider.isLoading}, error: ${newsProvider.error}');
             if (newsProvider.isLoading) {
+              print('🏠 Showing loading indicator');
               return Center(
                 child: CircularProgressIndicator(
                   valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
@@ -212,6 +240,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
             return Column(
               children: [
+                // Non-blocking Refresh Status Bar (Option A - Top indicator)
+                if (newsProvider.isRefreshing) 
+                  _buildRefreshStatusBar(),
+                
                 // Tournament Filter Chips (always show if filter is active OR tournaments exist)
                 if (newsProvider.selectedTournamentId != null || newsProvider.liveTournaments.isNotEmpty)
                   _buildTournamentFilterChips(context, newsProvider, settingsProvider),
@@ -227,8 +259,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         onRefresh: () async {
                           // Add haptic feedback for better UX
                           HapticFeedback.lightImpact();
-                          // Force refresh to bypass cache and get fresh data
-                          await newsProvider.loadNews(forceRefresh: true);
+                          // Use non-blocking background refresh - user can keep reading
+                          await newsProvider.refreshInBackground();
                         },
                         color: Theme.of(context).colorScheme.primary,
                         backgroundColor: Theme.of(context).colorScheme.surface,
@@ -258,6 +290,52 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             );
           },
+        ),
+      ),
+      ), // Close PopScope
+    );
+  }
+
+  /// Non-intrusive top status bar for background refresh
+  Widget _buildRefreshStatusBar() {
+    return AnimatedSlide(
+      offset: Offset.zero,
+      duration: const Duration(milliseconds: 200),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+              width: 0.5,
+            ),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Updating feed...',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );

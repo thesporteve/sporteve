@@ -16,24 +16,34 @@ class FirebaseDataService {
 
   /// Get news articles from Firestore or mock data
   Future<List<NewsArticle>> getNewsArticles() async {
+    print('📱 FirebaseDataService: Fetching news articles...');
     DebugLogger.instance.logInfo('Data', 'Fetching news articles...');
-    DebugLogger.instance.logFirebaseStatus(_firebaseService.getFirebaseStatus());
+    
+    final firebaseStatus = _firebaseService.getFirebaseStatus();
+    print('📱 Firebase Status: $firebaseStatus');
+    DebugLogger.instance.logFirebaseStatus(firebaseStatus);
     
     try {
       if (!_firebaseService.isFirebaseAvailable) {
+        print('❌ Firebase not available - using mock data');
         DebugLogger.instance.logWarning('Data', 'Firebase not available, using mock data');
         return _getSampleNewsArticles();
       }
+      
+      print('✅ Firebase ready - querying Firestore...');
 
+      print('🔍 Querying Firestore collection: news_articles');
       DebugLogger.instance.logInfo('Data', 'Querying Firestore for news articles...');
+      
       // Try to fetch from Firestore with timeout
       QuerySnapshot snapshot = await _firebaseService.firestore
           .collection('news_articles')
           .orderBy('publishedAt', descending: true)
           .limit(50)
           .get()
-          .timeout(Duration(seconds: 20));
+          .timeout(Duration(seconds: 10)); // Increased timeout for real device
 
+      print('📊 Firestore query completed. Found ${snapshot.docs.length} articles');
       DebugLogger.instance.logInfo('Data', 'Firestore query completed. Found ${snapshot.docs.length} articles');
 
       if (snapshot.docs.isNotEmpty) {
@@ -42,22 +52,31 @@ class FirebaseDataService {
           return NewsArticle.fromFirestore(doc.id, data);
         }).toList();
         
+        print('✅ Successfully loaded ${articles.length} REAL articles from Firestore');
         DebugLogger.instance.logSuccess('Data', 'Successfully loaded ${articles.length} articles from Firestore');
         return articles;
       } else {
         // No articles in Firestore, return sample data
+        print('⚠️ No articles found in Firestore - using mock data');
         DebugLogger.instance.logWarning('Data', 'No articles found in Firestore, using mock data');
         return _getSampleNewsArticles();
       }
     } catch (e) {
+      print('❌ ERROR fetching Firestore data: $e');
       DebugLogger.instance.logError('Data', 'Failed to fetch news articles from Firestore: $e');
+      
       if (e.toString().contains('timeout')) {
+        print('❌ Request timed out - check network connection');
         DebugLogger.instance.logError('Data', 'Request timed out - check network connection');
       } else if (e.toString().contains('permission')) {
+        print('❌ Permission denied - check Firestore security rules');
         DebugLogger.instance.logError('Data', 'Permission denied - check Firestore security rules');
       } else if (e.toString().contains('network')) {
+        print('❌ Network error - check internet connectivity');
         DebugLogger.instance.logError('Data', 'Network error - check internet connectivity');
       }
+      
+      print('⚠️ Falling back to mock data due to error');
       return _getSampleNewsArticles();
     }
   }
@@ -251,6 +270,7 @@ class FirebaseDataService {
 
   /// Sample news articles data
   List<NewsArticle> _getSampleNewsArticles() {
+    print('📝 Returning MOCK/SAMPLE data (5 articles)');
     return [
       NewsArticle(
         id: '1',
@@ -262,7 +282,7 @@ class FirebaseDataService {
         publishedAt: DateTime.now().subtract(const Duration(hours: 2)),
         source: 'ESPN',
         sourceUrl: 'https://twitter.com/espn/status/1234567890',
-        imageUrl: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800',
+        imageUrl: null, // Use category icon instead of external image
       ),
       NewsArticle(
         id: '2',
@@ -274,7 +294,7 @@ class FirebaseDataService {
         publishedAt: DateTime.now().subtract(const Duration(hours: 4)),
         source: 'NBA.com',
         sourceUrl: 'https://www.nba.com/lakers/news/game-recap-2024',
-        imageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800',
+        imageUrl: null, // Use category icon instead of external image
       ),
       NewsArticle(
         id: '3',
@@ -286,7 +306,32 @@ class FirebaseDataService {
         publishedAt: DateTime.now().subtract(const Duration(hours: 6)),
         source: 'Tennis.com',
         sourceUrl: 'https://www.tennis.com/news/djokovic-semifinals-2024',
-        imageUrl: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=800',
+        imageUrl: null, // Use category icon instead of external image
+      ),
+      // Add more sample articles for better testing
+      NewsArticle(
+        id: '4',
+        title: 'Cricket World Cup Final Set',
+        summary: 'Australia and India to face off in the ultimate showdown.',
+        content: 'The Cricket World Cup final promises to be an epic battle between two cricketing powerhouses...',
+        author: 'Sarah Johnson',
+        category: 'cricket',
+        publishedAt: DateTime.now().subtract(const Duration(hours: 8)),
+        source: 'Cricket Australia',
+        sourceUrl: 'https://www.cricket.com.au/news/world-cup-final',
+        imageUrl: null,
+      ),
+      NewsArticle(
+        id: '5',
+        title: 'Olympic Preparations Underway',
+        summary: 'Athletes gear up for the upcoming Summer Olympics with intensive training.',
+        content: 'With months of preparation ahead, Olympic athletes are pushing their limits...',
+        author: 'Michael Chen',
+        category: 'olympics',
+        publishedAt: DateTime.now().subtract(const Duration(hours: 12)),
+        source: 'Olympic Channel',
+        sourceUrl: 'https://olympics.com/news/preparation-2024',
+        imageUrl: null,
       ),
     ];
   }

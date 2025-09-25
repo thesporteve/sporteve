@@ -31,10 +31,33 @@ class _CustomSplashScreenState extends State<CustomSplashScreen>
 
     _animationController.forward();
 
-    // Navigate to home after splash display
-    Future.delayed(const Duration(milliseconds: 2000), () {
+    // Navigate to home after splash display (shortened delay)
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      print('🚀 Splash timer expired - attempting navigation to /home');
       if (mounted) {
-        context.go('/home');
+        print('🚀 Widget is mounted - navigating to /home');
+        try {
+          context.go('/home');
+          print('🚀 Navigation to /home completed');
+        } catch (e) {
+          print('❌ Navigation failed: $e');
+          // Fallback: try different navigation method
+          context.pushReplacement('/home');
+        }
+      } else {
+        print('❌ Widget not mounted - skipping navigation');
+      }
+    });
+    
+    // Backup timer in case first one fails
+    Future.delayed(const Duration(milliseconds: 3000), () {
+      if (mounted) {
+        print('🆘 Backup timer - forcing navigation to /home');
+        try {
+          context.pushReplacement('/home');
+        } catch (e) {
+          print('❌ Backup navigation also failed: $e');
+        }
       }
     });
   }
@@ -47,6 +70,7 @@ class _CustomSplashScreenState extends State<CustomSplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    print('💦 CustomSplashScreen build called');
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -58,6 +82,23 @@ class _CustomSplashScreenState extends State<CustomSplashScreen>
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
+            errorBuilder: (context, error, stackTrace) {
+              print('❌ Failed to load splash logo: $error');
+              // Simple fallback
+              return Container(
+                color: Theme.of(context).colorScheme.primary,
+                child: Center(
+                  child: Text(
+                    'SportEve',
+                    style: TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),

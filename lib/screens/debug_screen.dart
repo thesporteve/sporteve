@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../admin/setup/setup_news_articles.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../services/firebase_service.dart';
@@ -175,6 +176,13 @@ class _DebugScreenState extends State<DebugScreen> {
                   onPressed: _copyLogsToClipboard,
                   child: const Text('Copy Logs'),
                 ),
+                ElevatedButton(
+                  onPressed: _addSampleNewsArticles,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                  ),
+                  child: const Text('Add Sample Articles'),
+                ),
               ],
             ),
           ],
@@ -330,6 +338,51 @@ class _DebugScreenState extends State<DebugScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Logs copied to clipboard')),
       );
+    }
+  }
+
+  Future<void> _addSampleNewsArticles() async {
+    DebugLogger.instance.log('🚀 Adding sample news articles to Firebase...');
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Adding sample articles... Please wait'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+    
+    try {
+      await NewsArticlesSetup.createSampleNewsArticles();
+      
+      DebugLogger.instance.log('✅ Sample articles added successfully!');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Sample articles added! Refresh the app to see them.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      
+      // Trigger a news refresh
+      setState(() {});
+      
+    } catch (e) {
+      DebugLogger.instance.log('❌ Failed to add sample articles: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Failed to add articles: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 }

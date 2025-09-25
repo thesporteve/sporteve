@@ -4,6 +4,7 @@ import '../models/sports_team.dart';
 import '../models/match.dart';
 import '../models/tournament.dart';
 import '../services/firebase_data_service.dart';
+import '../services/firebase_service.dart';
 import '../services/tournament_service.dart';
 import '../services/debug_logger.dart';
 
@@ -15,6 +16,7 @@ class NewsProvider with ChangeNotifier {
   List<Tournament> _liveTournaments = [];
   Map<String, String> _athleteNames = {}; // Cache athlete names by ID
   bool _isLoading = false;
+  bool _isRefreshing = false; // Non-blocking background refresh
   String? _error;
   String _selectedCategory = 'all';
   String? _selectedTournamentId;
@@ -29,6 +31,7 @@ class NewsProvider with ChangeNotifier {
   List<Tournament> get liveTournaments => _liveTournaments;
   Map<String, String> get athleteNames => _athleteNames;
   bool get isLoading => _isLoading;
+  bool get isRefreshing => _isRefreshing;
   String? get error => _error;
   String get selectedCategory => _selectedCategory;
   String? get selectedTournamentId => _selectedTournamentId;
@@ -93,12 +96,40 @@ class NewsProvider with ChangeNotifier {
     _clearError();
 
     try {
+      // Wait for Firebase to be fully initialized before loading data
+      print('🔄 NewsProvider: Waiting for Firebase to be ready...');
+      
+      // Give Firebase a moment to initialize if it hasn't already
+      int retryCount = 0;
+      while (!FirebaseService.instance.isFirebaseAvailable && retryCount < 10) {
+        print('⏳ Firebase not ready yet, waiting... (attempt ${retryCount + 1}/10)');
+        await Future.delayed(Duration(milliseconds: 500));
+        retryCount++;
+      }
+      
+      if (!FirebaseService.instance.isFirebaseAvailable && retryCount >= 10) {
+        print('❌ Firebase failed to initialize after 5 seconds, using mock data');
+      }
+      
       // Load news articles first
+      print('🔄 NewsProvider: Starting to load news articles...');
       DebugLogger.instance.logInfo('NewsProvider', 'Fetching fresh articles from Firebase...');
+      
       _articles = await FirebaseDataService.instance.getNewsArticles();
       _originalArticles = List.from(_articles); // Cache the original articles
       _lastLoadTime = DateTime.now();
-      print('✅ Loaded ${_articles.length} articles from Firestore (fresh)');
+      
+      // Check if we got mock data (sample IDs are '1', '2', '3', '4', '5' for mock data)
+      final hasMockData = _articles.any((article) => 
+        article.id == '1' || article.id == '2' || article.id == '3' || 
+        article.id == '4' || article.id == '5' || article.id.startsWith('sample'));
+        
+      if (hasMockData) {
+        print('⚠️ NewsProvider: Loaded ${_articles.length} MOCK articles - Firebase connection failed');
+      } else {
+        print('✅ NewsProvider: Loaded ${_articles.length} REAL articles from Firestore');
+      }
+      
       DebugLogger.instance.logSuccess('NewsProvider', 'Loaded ${_articles.length} articles from Firestore (fresh)');
       
       // Load live tournaments
@@ -274,6 +305,56 @@ class NewsProvider with ChangeNotifier {
     loadMatches();
   }
 
+  /// Non-blocking refresh that keeps existing content visible while loading new data
+  Future<void> refreshInBackground() async {
+    DebugLogger.instance.logInfo('NewsProvider', 'Background refresh triggered - non-blocking');
+    
+    if (_isRefreshing) {
+      print('⚠️ Refresh already in progress, skipping duplicate request');
+      return;
+    }
+
+    _setRefreshing(true);
+    
+    try {
+      // Wait for Firebase to be ready (same logic as loadNews)
+      int retryCount = 0;
+      while (!FirebaseService.instance.isFirebaseAvailable && retryCount < 10) {
+        print('⏳ Firebase not ready yet, waiting... (attempt ${retryCount + 1}/10)');
+        await Future.delayed(Duration(milliseconds: 500));
+        retryCount++;
+      }
+      
+      // Load fresh articles in background
+      final freshArticles = await FirebaseDataService.instance.getNewsArticles();
+      
+      // Update cached articles without blocking UI
+      _articles = freshArticles;
+      _originalArticles = List.from(freshArticles);
+      _lastLoadTime = DateTime.now();
+      
+      final hasMockData = _articles.any((article) => 
+        article.id == '1' || article.id == '2' || article.id == '3' || 
+        article.id == '4' || article.id == '5' || article.id.startsWith('sample'));
+        
+      if (hasMockData) {
+        print('⚠️ Background refresh: Loaded ${_articles.length} MOCK articles');
+      } else {
+        print('✅ Background refresh: Loaded ${_articles.length} REAL articles from Firestore');
+      }
+      
+      DebugLogger.instance.logSuccess('NewsProvider', 'Background refresh completed with ${_articles.length} articles');
+      _error = null; // Clear any previous errors
+      
+    } catch (e) {
+      print('❌ Background refresh failed: $e');
+      DebugLogger.instance.logError('NewsProvider', 'Background refresh failed: $e');
+      // Don't set _error for background refresh failures to avoid disrupting user experience
+    } finally {
+      _setRefreshing(false);
+    }
+  }
+
   Future<void> _loadAthleteNames(List<NewsArticle> articles) async {
     // Extract unique athlete IDs from articles
     final athleteIds = articles
@@ -310,6 +391,11 @@ class NewsProvider with ChangeNotifier {
   // Private methods
   void _setLoading(bool loading) {
     _isLoading = loading;
+    notifyListeners();
+  }
+
+  void _setRefreshing(bool refreshing) {
+    _isRefreshing = refreshing;
     notifyListeners();
   }
 

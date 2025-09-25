@@ -223,24 +223,7 @@ class _NewsCardState extends State<NewsCard> {
             ),
           ],
         ),
-        // Swipe indicator (only show if source URL exists AND not using custom sport image)
-        if (widget.article.sourceUrl != null && widget.article.sourceUrl!.isNotEmpty && !_hasCustomImage())
-          Positioned(
-            top: 8,
-            right: 8,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.secondary.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.open_in_browser,
-                size: 12,
-                color: Theme.of(context).colorScheme.onSecondary,
-              ),
-            ),
-          ),
+        // Swipe indicator removed for cleaner UI - swipe functionality still works
         ],
       ),
     ),
@@ -288,7 +271,7 @@ class _NewsCardState extends State<NewsCard> {
           if (!_hasCustomImage())
             Positioned(
               top: 12,
-              right: widget.article.sourceUrl != null && widget.article.sourceUrl!.isNotEmpty ? 36 : 12, // Adjust for swipe indicator
+              right: 12, // Consistent positioning since swipe indicator removed
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
@@ -324,18 +307,25 @@ class _NewsCardState extends State<NewsCard> {
 
   /// Enhanced network image builder with Firebase Storage optimization and better caching
   Widget _buildNetworkImage(BuildContext context) {
-    final imageUrl = widget.article.imageUrl!;
+    final originalImageUrl = widget.article.imageUrl!;
+    // Use optimized thumbnail URL for faster loading
+    final optimizedImageUrl = FirebaseImageService.getCardThumbnailUrl(
+      originalImageUrl, 
+      isFeatured: widget.isFeatured
+    );
     
     return CachedNetworkImage(
-      imageUrl: imageUrl,
+      imageUrl: optimizedImageUrl,
       width: double.infinity,
       height: widget.isFeatured ? 180 : 260,
       fit: BoxFit.cover,
       
-      // Enhanced caching configuration - aligned with detail screen
-      cacheKey: FirebaseImageService.generateCacheKey(imageUrl, widget.article.id, prefix: 'card'),
-      memCacheWidth: FirebaseImageService.getMemoryCacheDimensions(isFeatured: widget.isFeatured)['width'],
-      memCacheHeight: FirebaseImageService.getMemoryCacheDimensions(isFeatured: widget.isFeatured)['height'],
+      // Enhanced caching configuration with optimized dimensions
+      cacheKey: FirebaseImageService.generateCacheKey(optimizedImageUrl, widget.article.id, prefix: 'card_thumb'),
+      memCacheWidth: widget.isFeatured ? 600 : 400,  // Match optimized sizes
+      memCacheHeight: widget.isFeatured ? 320 : 240, // Match optimized sizes
+      maxWidthDiskCache: widget.isFeatured ? 600 : 400,  // Reduce disk cache size
+      maxHeightDiskCache: widget.isFeatured ? 320 : 240, // for faster access
       
       // Loading placeholder with better UX
       placeholder: (context, url) => Container(
@@ -388,12 +378,17 @@ class _NewsCardState extends State<NewsCard> {
         );
       },
       
-      // Progressive loading for better UX
-      fadeInDuration: const Duration(milliseconds: 300),
-      fadeOutDuration: const Duration(milliseconds: 100),
+      // Faster progressive loading for better UX
+      fadeInDuration: const Duration(milliseconds: 200), // Reduced for snappier feel
+      fadeOutDuration: const Duration(milliseconds: 50),  // Reduced for snappier feel
       
       // Network retry configuration for Firebase Storage
-      httpHeaders: FirebaseImageService.getFirebaseStorageHeaders(imageUrl),
+      httpHeaders: FirebaseImageService.getFirebaseStorageHeaders(optimizedImageUrl),
+      
+      // Advanced caching settings for better performance
+      cacheManager: null, // Use default manager with better settings
+      useOldImageOnUrlChange: true, // Show old image while loading new one
+      filterQuality: FilterQuality.low, // Faster rendering for thumbnails
     );
   }
 
@@ -435,153 +430,161 @@ class _NewsCardState extends State<NewsCard> {
   }
 
   Widget _buildFooter(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Author
-        Expanded(
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 12,
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                child: Text(
-                  widget.article.author.isNotEmpty ? widget.article.author[0].toUpperCase() : 'A',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
+        // Row 1: Author Info (Full space, no crowding)
+        Row(
+          children: [
+            CircleAvatar(
+              radius: 12,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              child: Text(
+                widget.article.author.isNotEmpty ? widget.article.author[0].toUpperCase() : 'A',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  widget.article.author,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                widget.article.author,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 8),
+        
+        // Row 2: Metadata & Actions  
+        Row(
+          children: [
+            // Published Date
+            Text(
+              _formatDate(widget.article.publishedAt),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                fontSize: 11,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            
+            // Engagement Stats with bullet separator
+            if (widget.article.views > 0 || _likeCount > 0 || widget.article.shares > 0) ...[
+              Text(
+                ' • ',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                  fontSize: 11,
                 ),
               ),
             ],
-          ),
-        ),
-        
-        // Published Date
-        Text(
-          _formatDate(widget.article.publishedAt),
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-            fontSize: 12,
-          ),
-        ),
-        
-        // Engagement Stats
-        Row(
-          children: [
+            
             // Views
             if (widget.article.views > 0) ...[
               Icon(
                 Icons.visibility,
-                size: 14,
+                size: 12,
                 color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 2),
               Text(
                 _formatViews(widget.article.views),
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                  fontSize: 12,
+                  fontSize: 11,
                 ),
               ),
             ],
             
-            // Likes
+            // Likes  
             if (_likeCount > 0) ...[
-              const SizedBox(width: 8),
+              if (widget.article.views > 0) ...[
+                Text(
+                  ' • ',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
               Icon(
                 Icons.favorite,
-                size: 14,
+                size: 12,
                 color: Colors.red.withOpacity(0.7),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 2),
               Text(
                 _formatViews(_likeCount),
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                  fontSize: 12,
+                  fontSize: 11,
                 ),
               ),
             ],
             
-            // Shares
-            if (widget.article.shares > 0) ...[
-              const SizedBox(width: 8),
-              Icon(
-                Icons.share,
-                size: 14,
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                _formatViews(widget.article.shares),
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ],
-        ),
-        
-        // Action Buttons
-        Row(
-          children: [
-            // Like Button
-            GestureDetector(
-              onTap: _isLikeLoading ? null : () => _toggleLike(),
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: (_isLiked ? Colors.red : Colors.red.withOpacity(0.1)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: _isLikeLoading
-                    ? SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
-                        ),
-                      )
-                    : Icon(
-                        _isLiked ? Icons.favorite : Icons.favorite_border,
-                        size: 16,
-                        color: _isLiked ? Colors.white : Colors.red.withOpacity(0.8),
-                      ),
-              ),
-            ),
+            const Spacer(),
             
-            const SizedBox(width: 8),
-            
-            // Share Button
-            GestureDetector(
-              onTap: () => _shareArticle(context),
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+            // Action Buttons (Right aligned)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Like Button
+                GestureDetector(
+                  onTap: _isLikeLoading ? null : () => _toggleLike(),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: (_isLiked ? Colors.red : Colors.red.withOpacity(0.1)),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: _isLikeLoading
+                        ? SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _isLiked ? Colors.white : Colors.red,
+                              ),
+                            ),
+                          )
+                        : Icon(
+                            _isLiked ? Icons.favorite : Icons.favorite_border,
+                            size: 14,
+                            color: _isLiked ? Colors.white : Colors.red,
+                          ),
+                  ),
                 ),
-                child: Icon(
-                  Icons.share,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.primary,
+                
+                const SizedBox(width: 6),
+                
+                // Share Button
+                GestureDetector(
+                  onTap: () => _shareArticle(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      Icons.share,
+                      size: 14,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),

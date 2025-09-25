@@ -441,22 +441,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
             ),
           ),
         ),
-        const Spacer(),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            'PUBLISHED',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-              fontWeight: FontWeight.bold,
-              fontSize: 10,
-            ),
-          ),
-        ),
+        // Removed 'PUBLISHED' flag as requested
       ],
     );
   }
@@ -474,30 +459,18 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   Widget _buildMetaInfo() {
     return Row(
       children: [
-        Icon(
-          Icons.schedule,
-          size: 16,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          _formatDate(_content!.publishedAt ?? _content!.createdAt),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-          ),
-        ),
+        // Removed 'Published' flag - just show approved by if available
         if (_content!.approvedBy != null) ...[
-          const SizedBox(width: 16),
           Icon(
-            Icons.verified,
+            Icons.person,
             size: 16,
-            color: Theme.of(context).colorScheme.primary,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
           ),
           const SizedBox(width: 4),
           Text(
-            'By ${_content!.approvedBy}',
+            'Author: ${_content!.approvedBy}',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -589,28 +562,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (fact.category.isNotEmpty) ...[
-          _buildSectionTitle('Category'),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2196F3).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: const Color(0xFF2196F3).withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Text(
-              fact.category,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF2196F3),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
+        // Removed Category display as requested
+        // Category section removed - was showing "Category - General" etc.
       ],
     );
   }

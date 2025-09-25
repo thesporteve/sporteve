@@ -10,13 +10,19 @@ class FirebaseImageService {
            url.contains('storage.cloud.google.com');
   }
 
-  /// Get appropriate headers for Firebase Storage requests
+  /// Get optimized headers for Firebase Storage requests with better caching
   static Map<String, String>? getFirebaseStorageHeaders(String imageUrl) {
     if (isFirebaseStorageUrl(imageUrl)) {
       return {
-        'Accept': 'image/*',
-        'Cache-Control': 'max-age=3600', // 1 hour cache
-        'User-Agent': 'SportEve/1.0',
+        // Prefer WebP format for better compression (30% smaller files)
+        'Accept': 'image/webp,image/avif,image/jpeg,image/png,image/*;q=0.8,*/*;q=0.5',
+        // Extended cache for news images (7 days)
+        'Cache-Control': 'public, max-age=604800, stale-while-revalidate=86400',
+        'User-Agent': 'SportEve/1.0 (Mobile)',
+        // Enable compression
+        'Accept-Encoding': 'gzip, deflate, br',
+        // Prefer faster connection reuse
+        'Connection': 'keep-alive',
       };
     }
     return null;
@@ -68,11 +74,32 @@ class FirebaseImageService {
     }
   }
 
-  /// Get download URL for Firebase Storage with optional token refresh
-  static Future<String?> getOptimizedDownloadUrl(String firebaseStorageUrl) async {
-    // For future enhancement: Add token refresh logic if needed
-    // Currently just returns the original URL
+  /// Get download URL (Firebase Storage serves files as-is)
+  static String getOptimizedDownloadUrl(String firebaseStorageUrl) {
+    // Firebase Storage doesn't support query parameter transformations
+    // Files are served exactly as uploaded
     return firebaseStorageUrl;
+  }
+
+  /// Get URL for card thumbnails (same as original until WebP conversion)
+  static String getCardThumbnailUrl(String firebaseStorageUrl, {bool isFeatured = false}) {
+    // Note: Firebase Storage serves original file
+    // For true optimization, upload WebP versions or use Firebase Functions
+    return firebaseStorageUrl;
+  }
+
+  /// Get URL for detail view (same as original until WebP conversion)
+  static String getDetailViewUrl(String firebaseStorageUrl) {
+    // Note: Firebase Storage serves original file
+    // For true optimization, upload WebP versions or use Firebase Functions
+    return firebaseStorageUrl;
+  }
+
+  /// Helper to check if we should recommend WebP conversion
+  static bool shouldConvertToWebP(String firebaseStorageUrl) {
+    return firebaseStorageUrl.toLowerCase().contains('.png') || 
+           firebaseStorageUrl.toLowerCase().contains('.jpg') ||
+           firebaseStorageUrl.toLowerCase().contains('.jpeg');
   }
 
   /// Validate Firebase Storage URL format

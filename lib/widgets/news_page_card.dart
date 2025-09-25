@@ -356,20 +356,22 @@ Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
   }
 
   Widget _buildNetworkImage() {
-    final imageUrl = widget.article.imageUrl!;
+    final originalImageUrl = widget.article.imageUrl!;
+    // Use optimized thumbnail URL for faster page card loading
+    final optimizedImageUrl = FirebaseImageService.getCardThumbnailUrl(originalImageUrl);
     
     return CachedNetworkImage(
-      imageUrl: imageUrl,
+      imageUrl: optimizedImageUrl,
       width: double.infinity,
       height: 160,
       fit: BoxFit.cover,
       
       // Optimized caching configuration for faster loading
-      cacheKey: FirebaseImageService.generateCacheKey(imageUrl, widget.article.id, prefix: 'page_card'),
+      cacheKey: FirebaseImageService.generateCacheKey(optimizedImageUrl, widget.article.id, prefix: 'page_card_thumb'),
       memCacheWidth: 300, // Optimized for 160px height display
-      memCacheHeight: 180, // Match display aspect ratio
-      maxWidthDiskCache: 400, // Smaller cache for faster access
-      maxHeightDiskCache: 240,
+      memCacheHeight: 180, // Match display aspect ratio  
+      maxWidthDiskCache: 300, // Smaller cache for faster access
+      maxHeightDiskCache: 180, // Match exact display size
       
       // Faster loading with immediate display
       placeholder: (context, url) => Container(
@@ -408,12 +410,12 @@ Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
       fadeInDuration: const Duration(milliseconds: 200), // Reduced from 300ms
       fadeOutDuration: const Duration(milliseconds: 50),  // Reduced from 100ms
       
-      // Network optimization headers
-      httpHeaders: {
-        ...?FirebaseImageService.getFirebaseStorageHeaders(imageUrl),
-        'Cache-Control': 'public, max-age=86400', // 24 hour cache
-        'Accept': 'image/webp,image/jpeg,*/*', // Prefer faster formats
-      },
+      // Network optimization headers with enhanced caching
+      httpHeaders: FirebaseImageService.getFirebaseStorageHeaders(optimizedImageUrl),
+      
+      // Advanced performance settings
+      useOldImageOnUrlChange: true, // Keep old image while loading new
+      filterQuality: FilterQuality.low, // Faster rendering for small thumbnails
     );
   }
 
@@ -521,25 +523,58 @@ Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
   }
 
   Widget _buildCategory() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-          width: 1,
+    return Row(
+      children: [
+        // Category badge on the left
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Text(
+            _formatCategory(widget.article.category),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.primary,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
         ),
-      ),
-      child: Text(
-        _formatCategory(widget.article.category),
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.primary,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.3,
+        
+        const Spacer(),
+        
+        // Action icons on the right (utilizing the space)
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Bookmark button
+            _buildActionButton(
+              _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+              _toggleBookmark,
+              isHighlighted: true,
+              isLoading: _isBookmarkLoading,
+            ),
+            const SizedBox(width: 8),
+            // Like button
+            _buildActionButton(
+              _isLiked ? Icons.favorite : Icons.favorite_border, 
+              _likeArticle,
+              color: Colors.red,
+              isHighlighted: _isLiked,
+              isLoading: _isLikeLoading,
+            ),
+            const SizedBox(width: 8),
+            // Share button
+            _buildActionButton(Icons.share, () => _shareArticle()),
+          ],
         ),
-      ),
+      ],
     );
   }
 
@@ -569,17 +604,33 @@ Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
   }
 
   Widget _buildSummary() {
-    return SingleChildScrollView(
-      child: Text(
-        widget.article.summary,
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-          fontSize: 13,
-          height: 1.3,
-        ),
-        maxLines: null, // Allow text to flow naturally
-        overflow: TextOverflow.visible,
+    // Simple truncated text preview - no scrolling complexity  
+    // Now with more space since icons moved to top row
+    
+    // Responsive line count based on screen height
+    final screenHeight = MediaQuery.of(context).size.height;
+    int maxLines;
+    
+    if (screenHeight < 700) {
+      // Smaller devices (like iPhone SE) - use fewer lines
+      maxLines = 8;
+    } else if (screenHeight < 800) {
+      // Medium devices - good balance
+      maxLines = 10;
+    } else {
+      // Larger devices - maximize content preview
+      maxLines = 12;
+    }
+    
+    return Text(
+      widget.article.summary,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+        fontSize: 13,
+        height: 1.3,
       ),
+      maxLines: maxLines, // Responsive line count for optimal UX
+      overflow: TextOverflow.ellipsis, // Add ... when truncated
     );
   }
 
@@ -638,27 +689,39 @@ Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
         
         const SizedBox(width: 8),
         
-        // Action buttons (right side)  
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildActionButton(
-              _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-              _toggleBookmark,
-              isHighlighted: true,
-              isLoading: _isBookmarkLoading,
+        // "See more" link (right side)
+        GestureDetector(
+          onTap: () => context.push('/news/${widget.article.id}'),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                width: 1,
+              ),
             ),
-            const SizedBox(width: 12),
-            _buildActionButton(
-              _isLiked ? Icons.favorite : Icons.favorite_border, 
-              _likeArticle,
-              color: Colors.red,
-              isHighlighted: _isLiked,
-              isLoading: _isLikeLoading,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'See more',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 10,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            _buildActionButton(Icons.share, () => _shareArticle()),
-          ],
+          ),
         ),
       ],
     );
@@ -790,3 +853,5 @@ Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
     }
   }
 }
+
+// Removed complex ScrollableText widget - no longer needed with new layout

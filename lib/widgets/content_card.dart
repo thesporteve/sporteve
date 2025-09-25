@@ -120,8 +120,8 @@ class _ContentCardState extends State<ContentCard> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        // Always mark as read when tapped, even if already read
-        // This ensures the state is consistent
+        // Always mark as read when tapped to remove NEW badge
+        // This should be called by parent screen to update isRead state
         widget.onMarkAsRead();
         
         // Small delay to ensure state update processes

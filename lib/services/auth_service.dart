@@ -8,13 +8,15 @@ class AuthService {
   factory AuthService() => _instance;
   AuthService._internal();
 
-  final firebase_auth.FirebaseAuth _firebaseAuth = firebase_auth.FirebaseAuth.instance;
+  // Safe lazy initialization - only access when Firebase is ready
+  firebase_auth.FirebaseAuth get _firebaseAuth => firebase_auth.FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
+  
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
     // Temporarily comment out serverClientId to test basic flow
     // serverClientId: '281561259389-f419lu49ls5ita67or3hpvsftdq7b1ps.apps.googleusercontent.com',
   );
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Get current Firebase user
   firebase_auth.User? get currentFirebaseUser => _firebaseAuth.currentUser;
