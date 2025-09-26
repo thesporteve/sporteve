@@ -1,11 +1,11 @@
 {
-    "name": "sporteve",
-    "short_name": "sporteve",
+    "name": "SportEve - Sports News & Updates",
+    "short_name": "SportEve",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FFFFFF",
     "theme_color": "#2196F3",
-    "description": "A new Flutter project.",
+    "description": "Get the latest sports news, updates, tips and facts. Stay connected with your favorite sports.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
