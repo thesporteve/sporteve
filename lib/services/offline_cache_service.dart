@@ -245,12 +245,15 @@ class OfflineCacheService {
           ? ParentTipContent(
               title: contentData['title'] ?? '',
               content: contentData['content'] ?? '',
+              benefits: List<String>.from(contentData['benefits'] ?? []),
+              ageGroup: contentData['age_group'] ?? 'All Ages',
             )
           : null,
       didYouKnowContent: contentType == ContentType.didYouKnow && contentData.isNotEmpty
           ? DidYouKnowContent(
               fact: contentData['fact'] ?? '',
               details: contentData['details'] ?? '',
+              category: contentData['category'] ?? 'General',
             )
           : null,
       triviaContent: contentType == ContentType.trivia && contentData.isNotEmpty
@@ -259,6 +262,7 @@ class OfflineCacheService {
               options: List<String>.from(contentData['options'] ?? []),
               correctAnswer: contentData['correct_answer'] ?? '',
               explanation: contentData['explanation'] ?? '',
+              difficulty: DifficultyLevel.fromString(contentData['difficulty'] ?? 'medium'),
             )
           : null,
       generationSource: data['generation_source'] ?? '',

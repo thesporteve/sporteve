@@ -380,7 +380,7 @@ class _ContentCardState extends State<ContentCard> {
   IconData _getTypeIcon() {
     switch (widget.content.type) {
       case ContentType.parentTip:
-        return Icons.family_restroom;
+        return Icons.medical_services;
       case ContentType.didYouKnow:
         return Icons.lightbulb_outline;
       case ContentType.trivia:
@@ -391,7 +391,7 @@ class _ContentCardState extends State<ContentCard> {
   String _getTypeLabel() {
     switch (widget.content.type) {
       case ContentType.parentTip:
-        return 'PARENTING TIP';
+        return 'HEALTH TIP';
       case ContentType.didYouKnow:
         return 'DID YOU KNOW';
       case ContentType.trivia:
@@ -488,7 +488,7 @@ class _ContentCardState extends State<ContentCard> {
     switch (widget.content.type) {
       case ContentType.parentTip:
         final tip = widget.content.parentTipContent;
-        return '${tip?.title}\n\n${tip?.content}\n\nShared from SportEve App 🏆\n#ParentingTip #SportEve';
+        return '${tip?.title}\n\n${tip?.content}\n\nShared from SportEve App 🏆\n#HealthTip #SportEve';
       case ContentType.didYouKnow:
         final fact = widget.content.didYouKnowContent;
         return 'Did you know? ${fact?.fact}\n\n${fact?.details}\n\nShared from SportEve App 🏆\n#DidYouKnow #SportEve';

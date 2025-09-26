@@ -26,7 +26,7 @@ class _AdminContentReviewScreenState extends State<AdminContentReviewScreen> {
   String _selectedContentType = 'All';
   String _selectedSport = 'All';
 
-  final List<String> _contentTypes = ['All', 'Trivia', 'Parent Tip', 'Did You Know'];
+  final List<String> _contentTypes = ['All', 'Trivia', 'Health Tip', 'Did You Know'];
 
   @override
   void initState() {
@@ -69,7 +69,7 @@ class _AdminContentReviewScreenState extends State<AdminContentReviewScreen> {
         // Content type filter
         final matchesType = _selectedContentType == 'All' ||
             (_selectedContentType == 'Trivia' && content.type == ContentType.trivia) ||
-            (_selectedContentType == 'Parent Tip' && content.type == ContentType.parentTip) ||
+            (_selectedContentType == 'Health Tip' && content.type == ContentType.parentTip) ||
             (_selectedContentType == 'Did You Know' && content.type == ContentType.didYouKnow);
 
         // Sport filter

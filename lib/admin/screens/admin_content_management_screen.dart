@@ -39,7 +39,7 @@ class _AdminContentManagementScreenState extends State<AdminContentManagementScr
   String _selectedStatus = 'All';
   String _selectedSport = 'All';
 
-  final List<String> _contentTypes = ['All', 'Trivia', 'Parent Tip', 'Did You Know'];
+  final List<String> _contentTypes = ['All', 'Trivia', 'Health Tip', 'Did You Know'];
   final List<String> _statusTypes = ['All', 'Generated', 'Approved', 'Published', 'Rejected'];
 
   @override
@@ -156,7 +156,7 @@ class _AdminContentManagementScreenState extends State<AdminContentManagementScr
     
     switch (type) {
       case ContentType.parentTip:
-        return content['title'] ?? 'Untitled Parenting Tip';
+        return content['title'] ?? 'Untitled Health Tip';
       case ContentType.didYouKnow:
         return content['fact']?.substring(0, 50) ?? 'Did You Know Fact';
       case ContentType.trivia:
@@ -176,7 +176,7 @@ class _AdminContentManagementScreenState extends State<AdminContentManagementScr
         // Content type filter
         final matchesType = _selectedContentType == 'All' ||
             (_selectedContentType == 'Trivia' && content.type == ContentType.trivia) ||
-            (_selectedContentType == 'Parent Tip' && content.type == ContentType.parentTip) ||
+            (_selectedContentType == 'Health Tip' && content.type == ContentType.parentTip) ||
             (_selectedContentType == 'Did You Know' && content.type == ContentType.didYouKnow);
 
         // Status filter
@@ -366,9 +366,9 @@ class _AdminContentManagementScreenState extends State<AdminContentManagementScr
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
-                  'Parent Tips',
+                  'Health Tips',
                   _statistics['parent_tips']?.toString() ?? '0',
-                  Icons.family_restroom,
+                  Icons.medical_services,
                   Colors.green,
                 ),
               ),
@@ -1301,7 +1301,7 @@ class _AdminContentManagementScreenState extends State<AdminContentManagementScr
 
   String _getAnalyticsContentTypeDisplayName(String type) {
     switch (type) {
-      case 'parent_tip': return 'Parenting Tips';
+      case 'parent_tip': return 'Health Tips';
       case 'did_you_know': return 'Did You Know';
       case 'trivia': return 'Trivia';
       default: return type;

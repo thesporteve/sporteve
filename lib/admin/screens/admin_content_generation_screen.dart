@@ -273,7 +273,7 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
       
       if (_manualContentType == 'single_parent_tip') {
         if (_manualTitleController.text.trim().isEmpty || _manualContentController.text.trim().isEmpty) {
-          throw Exception('Title and content are required for Parent Tips');
+          throw Exception('Title and content are required for Health Tips');
         }
         
         final benefits = _manualBenefitsController.text.trim().isNotEmpty 
@@ -327,7 +327,7 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Manual ${_manualContentType == "single_parent_tip" ? "Parent Tip" : "Did You Know"} created successfully!'),
+          content: Text('Manual ${_manualContentType == "single_parent_tip" ? "Health Tip" : "Did You Know"} created successfully!'),
           backgroundColor: AdminTheme.successColor,
         ),
       );
@@ -398,7 +398,7 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
                         ),
                       ),
                       Text(
-                        'Create custom parenting tips and facts for sports - perfect for unique content!',
+                        'Create custom health tips and facts for sports - perfect for unique content!',
                         style: AdminTheme.bodyMedium.copyWith(color: Colors.grey[600]),
                       ),
                     ],
@@ -422,7 +422,7 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
                     items: const [
                       DropdownMenuItem(
                         value: 'single_parent_tip',
-                        child: Text('Parenting Tip'),
+                        child: Text('Health Tip'),
                       ),
                       DropdownMenuItem(
                         value: 'sport_facts',
@@ -488,7 +488,7 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
                       : const Icon(Icons.add),
                   label: Text(_isManualSubmitting 
                       ? 'Creating...' 
-                      : 'Create ${_manualContentType == "single_parent_tip" ? "Parent Tip" : "Did You Know"}'),
+                      : 'Create ${_manualContentType == "single_parent_tip" ? "Health Tip" : "Did You Know"}'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AdminTheme.primaryColor,
                     foregroundColor: Colors.white,
@@ -530,7 +530,7 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
           controller: _manualContentController,
           decoration: const InputDecoration(
             labelText: 'Content *',
-            hintText: 'Write the main parenting tip content here...',
+            hintText: 'Write the main health tip content here...',
             border: OutlineInputBorder(),
             isDense: true,
           ),
@@ -630,9 +630,9 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
           onTap: () => _quickGenerate('bulk_trivia', 1),
         ),
         _buildQuickGenerationCard(
-          icon: Icons.family_restroom,
-          title: 'Parent Tips',
-          description: '1 parenting tip\nAge-appropriate',
+          icon: Icons.medical_services,
+          title: 'Health Tips',
+          description: '1 health tip\nSports-related',
           onTap: () => _quickGenerate('single_parent_tip', 1),
         ),
         _buildQuickGenerationCard(
@@ -760,7 +760,7 @@ class _AdminContentGenerationScreenState extends State<AdminContentGenerationScr
               ),
               items: const [
                 DropdownMenuItem(value: 'bulk_trivia', child: Text('🧠 Bulk Trivia Questions')),
-                DropdownMenuItem(value: 'single_parent_tip', child: Text('👨‍👩‍👧‍👦 Parent Tips')),
+                DropdownMenuItem(value: 'single_parent_tip', child: Text('🏥 Health Tips')),
                 DropdownMenuItem(value: 'sport_facts', child: Text('💡 Did You Know Facts')),
                 DropdownMenuItem(value: 'mixed_content', child: Text('🎯 Mixed Content Pack')),
               ],

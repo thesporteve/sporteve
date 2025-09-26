@@ -12,7 +12,7 @@ enum GenerationRequestType {
       case GenerationRequestType.bulkTrivia:
         return 'Bulk Trivia';
       case GenerationRequestType.singleParentTip:
-        return 'Parent Tip';
+        return 'Health Tip';
       case GenerationRequestType.sportFacts:
         return 'Sport Facts';
       case GenerationRequestType.mixedContent:

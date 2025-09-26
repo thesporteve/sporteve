@@ -127,9 +127,10 @@ final GoRouter _router = GoRouter(
     final isProtectedRoute = protectedRoutes.any((route) => 
         currentLocation.startsWith(route));
     
-    // Check if current route is public (including news detail routes)
+    // Check if current route is public (including news detail routes and deep links)
     final isPublicRoute = publicRoutes.contains(currentLocation) || 
-                         currentLocation.startsWith('/news/');
+                         currentLocation.startsWith('/news/') ||
+                         currentLocation.startsWith('/article/');
     
     // If trying to access protected route without being signed in, redirect to signin
     if (!isSignedIn && isProtectedRoute) {
@@ -197,6 +198,14 @@ final GoRouter _router = GoRouter(
       builder: (context, state) {
         final newsId = state.pathParameters['id']!;
         return NewsDetailScreen(newsId: newsId);
+      },
+    ),
+    // Deep link route for article sharing (redirects to news route)
+    GoRoute(
+      path: '/article/:id',
+      redirect: (context, state) {
+        final articleId = state.pathParameters['id']!;
+        return '/news/$articleId';
       },
     ),
     GoRoute(

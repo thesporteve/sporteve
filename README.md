@@ -281,4 +281,4 @@ For support, email support@sporteve.com or create an issue in the repository.
 
 ---
 
-**SportEve** - Your Ultimate Sports News Hub 🏆
+**SportEve** - Your Daily Sports Pulse 🏆

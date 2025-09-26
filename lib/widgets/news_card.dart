@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/news_article.dart';
 import '../providers/news_provider.dart';
 import '../services/like_service.dart';
+import '../services/share_service.dart';
 import '../services/firebase_image_service.dart';
 
 class NewsCard extends StatefulWidget {
@@ -611,26 +612,13 @@ class _NewsCardState extends State<NewsCard> {
     }
   }
 
-  /// Share article directly with native share
+  /// Share article using ShareService with smart deep linking
   Future<void> _shareArticle(BuildContext context) async {
     try {
       await context.read<NewsProvider>().incrementArticleShares(widget.article.id);
       
-      final String shareText = '''
-🏆 ${widget.article.title}
-
-${widget.article.summary}
-
-📰 Source: ${widget.article.source}
-✍️ By ${widget.article.author}
-
-Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
-      '''.trim();
-      
-      await Share.share(
-        shareText,
-        subject: widget.article.title,
-      );
+      // Use ShareService for smart deep linking
+      await ShareService().shareArticleText(widget.article);
     } catch (e) {
       print('Error sharing article: $e');
     }

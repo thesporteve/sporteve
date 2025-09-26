@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../../models/news_article.dart';
 import '../services/admin_data_service.dart';
 import '../theme/admin_theme.dart';
@@ -187,6 +189,16 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
                     _testNotification();
                   },
                 ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.clear_all, color: Colors.red),
+                  title: const Text('🧹 Clear Staging'),
+                  subtitle: const Text('Remove all articles from staging collection'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _clearNewsStaging();
+                  },
+                ),
               ],
               const SizedBox(height: 10),
             ],
@@ -194,6 +206,162 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
         );
       },
     );
+  }
+
+  /// Builds a processing indicator that shows when articles are being processed
+  /// Only shows articles added in the last 10 minutes (actually being processed)
+  Widget _buildProcessingIndicator() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('news_staging')
+          .where('submitted_at', 
+                 isGreaterThan: Timestamp.fromDate(
+                   DateTime.now().subtract(const Duration(minutes: 10))
+                 ))
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        
+        final processingCount = snapshot.data!.docs.length;
+        if (processingCount == 0) return const SizedBox.shrink();
+        
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.orange.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.orange.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.orange),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '🔄 Processing $processingCount article${processingCount > 1 ? 's' : ''}...',
+                style: AdminTheme.bodyMedium.copyWith(
+                  color: Colors.orange[800],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'Image optimization in progress',
+                style: AdminTheme.bodySmall.copyWith(
+                  color: Colors.orange[600],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _testNotification() async {
+    try {
+      // Import the notification service
+      // You can implement actual test notification logic here
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Test notification feature - to be implemented'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Test notification failed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _clearNewsStaging() async {
+    // Show confirmation dialog first
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Clear Staging Collection'),
+          content: const Text(
+            'This will permanently delete all articles in the staging collection. '
+            'Are you sure you want to continue?'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete All'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 12),
+              Text('Clearing staging collection...'),
+            ],
+          ),
+          duration: Duration(seconds: 30),
+        ),
+      );
+
+      // Call the Cloud Function
+      final callable = FirebaseFunctions.instance.httpsCallable('clearNewsStaging');
+      final result = await callable.call();
+
+      // Hide loading and show success
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.data['message'] ?? 'Staging collection cleared successfully'
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+
+      // Refresh the articles list
+      await _loadArticles();
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to clear staging: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
   }
 
   @override
@@ -329,6 +497,10 @@ class _AdminNewsScreenState extends State<AdminNewsScreen> {
             ],
           ),
         ),
+        
+        // Processing Indicator (only shows when articles are being processed)
+        _buildProcessingIndicator(),
+        
         const Divider(height: 1),
         
         // Content

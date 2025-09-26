@@ -10,7 +10,7 @@ enum ContentType {
       case ContentType.trivia:
         return 'Trivia';
       case ContentType.parentTip:
-        return 'Parent Tip';
+        return 'Health Tip';
       case ContentType.didYouKnow:
         return 'Did You Know';
     }
@@ -21,7 +21,7 @@ enum ContentType {
       case ContentType.trivia:
         return '🧠';
       case ContentType.parentTip:
-        return '👨‍👩‍👧‍👦';
+        return '🏥';
       case ContentType.didYouKnow:
         return '💡';
     }
@@ -392,7 +392,7 @@ class ContentFeed {
       case ContentType.trivia:
         return triviaContent?.question ?? 'Trivia Question';
       case ContentType.parentTip:
-        return parentTipContent?.title ?? 'Parent Tip';
+        return parentTipContent?.title ?? 'Health Tip';
       case ContentType.didYouKnow:
         return didYouKnowContent?.fact ?? 'Did You Know';
     }

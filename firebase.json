@@ -28,6 +28,14 @@
     ],
     "rewrites": [
       {
+        "source": "/article/**",
+        "destination": "/article.html"
+      },
+      {
+        "source": "/download",
+        "destination": "/article.html"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

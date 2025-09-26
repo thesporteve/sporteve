@@ -546,7 +546,7 @@ ${_article!.summary}
 📰 Source: ${_article!.source}
 ✍️ By ${_article!.author}
 
-Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
+Read the full story in SportEve - Your Daily Sports Pulse! 📱
       '''.trim();
       
       await Share.share(

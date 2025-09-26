@@ -108,7 +108,7 @@ class _SignInScreenState extends State<SignInScreen> {
               
               // Tagline
               Text(
-                'Your Ultimate Sports News Hub',
+                'Your Daily Sports Pulse',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
                   letterSpacing: 1,

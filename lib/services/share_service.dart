@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/news_article.dart';
+import '../config/app_config.dart';
 
 class ShareService {
   static final ShareService _instance = ShareService._internal();
@@ -16,6 +17,7 @@ class ShareService {
   Future<void> shareArticleText(NewsArticle article) async {
     try {
       final String shareText = _buildShareText(article);
+      
       await Share.share(
         shareText,
         subject: article.title,
@@ -77,8 +79,7 @@ class ShareService {
           await Share.share(shareText, subject: 'Check out this sports news!');
           break;
         case 'twitter':
-          final String twitterText = '${article.title}\n\nRead more in SportEve app! 🏆';
-          await Share.share(twitterText);
+          await Share.share(shareText);
           break;
         case 'telegram':
           await Share.share(shareText, subject: article.title);
@@ -250,9 +251,13 @@ class ShareService {
     );
   }
 
-  /// Build share text
+  /// Build share text with smart deep link
   String _buildShareText(NewsArticle article) {
-    return '''
+    try {
+      final smartLink = AppConfig.getSmartArticleLink(article.id);
+      final appStoreLink = AppConfig.getAppStoreLink();
+      
+      return '''
 🏆 ${article.title}
 
 ${article.summary}
@@ -260,8 +265,29 @@ ${article.summary}
 📰 Source: ${article.source}
 ✍️ By ${article.author}
 
-Read the full story in SportEve - Your Ultimate Sports News Hub! 📱
-    '''.trim();
+📱 Read the full story in ${AppConfig.appName} - ${AppConfig.tagline}!
+👉 $smartLink
+
+${AppConfig.isLiveOnPlayStore ? '📲 Get the app:' : '📲 Coming soon to Play Store:'}
+$appStoreLink
+
+#SportEve #Sports #News
+      '''.trim();
+      
+    } catch (e) {
+      print('❌ ERROR in _buildShareText: $e');
+      // Fallback to old format if AppConfig fails
+      return '''
+🏆 ${article.title}
+
+${article.summary}
+
+📰 Source: ${article.source}
+✍️ By ${article.author}
+
+Read the full story in SportEve - Your Daily Sports Pulse! 📱
+      '''.trim();
+    }
   }
 
   /// Save image to temporary file

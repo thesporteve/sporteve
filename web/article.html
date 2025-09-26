@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SportEve - Your Daily Sports Pulse</title>
+    
+    <!-- Open Graph Meta Tags for Rich Sharing -->
+    <meta property="og:title" content="SportEve Article">
+    <meta property="og:description" content="Read the latest sports news on SportEve - Your Daily Sports Pulse">
+    <meta property="og:image" content="https://sporteve-7afbf.web.app/icons/Icon-192.png">
+    <meta property="og:url" content="https://sporteve-7afbf.web.app">
+    <meta property="og:type" content="article">
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SportEve Article">
+    <meta name="twitter:description" content="Read the latest sports news on SportEve">
+    <meta name="twitter:image" content="https://sporteve-7afbf.web.app/icons/Icon-192.png">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 400px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 20px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .tagline {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+        
+        .status {
+            font-size: 18px;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+        }
+        
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: white;
+            color: #667eea;
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">⚽</div>
+        <h1>SportEve</h1>
+        <p class="tagline">Your Daily Sports Pulse</p>
+        
+        <div class="status" id="status">
+            <div class="loading"></div>
+            <span>Checking for app installation...</span>
+        </div>
+        
+        <div class="buttons" id="buttons" style="display: none;">
+            <a href="#" class="btn btn-primary" id="openApp">
+                📱 Open in App
+            </a>
+            <a href="https://play.google.com/store/apps/details?id=com.sporteve.app" class="btn btn-secondary" id="downloadApp">
+                📲 Download SportEve
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Extract article ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const articleId = window.location.pathname.split('/').pop() || urlParams.get('id');
+        
+        // Configuration
+        const APP_SCHEME = 'sporteve://article/';
+        const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.sporteve.app';
+        const APP_NOT_INSTALLED_DELAY = 3000; // 3 seconds
+        
+        let appInstalled = false;
+        let attemptedAppOpen = false;
+        
+        function updateStatus(message, showButtons = false) {
+            const statusEl = document.getElementById('status');
+            const buttonsEl = document.getElementById('buttons');
+            
+            statusEl.innerHTML = message;
+            buttonsEl.style.display = showButtons ? 'flex' : 'none';
+        }
+        
+        function tryOpenApp() {
+            if (attemptedAppOpen || !articleId) return;
+            
+            attemptedAppOpen = true;
+            const deepLink = APP_SCHEME + articleId;
+            
+            updateStatus('🚀 Attempting to open app...');
+            
+            // Try to open the app
+            window.location.href = deepLink;
+            
+            // If app doesn't open within 3 seconds, assume it's not installed
+            setTimeout(() => {
+                if (!appInstalled) {
+                    updateStatus('📱 SportEve app not found', true);
+                    // Redirect to Play Store after a moment
+                    setTimeout(() => {
+                        window.location.href = PLAY_STORE_URL;
+                    }, 2000);
+                }
+            }, APP_NOT_INSTALLED_DELAY);
+        }
+        
+        function setupEventListeners() {
+            const openAppBtn = document.getElementById('openApp');
+            const downloadAppBtn = document.getElementById('downloadApp');
+            
+            if (openAppBtn && articleId) {
+                openAppBtn.href = APP_SCHEME + articleId;
+                openAppBtn.onclick = () => {
+                    appInstalled = true;
+                    updateStatus('✅ Opening article in SportEve...');
+                };
+            }
+            
+            if (downloadAppBtn) {
+                downloadAppBtn.onclick = () => {
+                    updateStatus('📲 Redirecting to Play Store...');
+                };
+            }
+            
+            // Handle page visibility change (indicates app opened successfully)
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    appInstalled = true;
+                }
+            });
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            
+            if (articleId) {
+                // Auto-attempt to open app if article ID is provided
+                setTimeout(tryOpenApp, 1000);
+            } else {
+                // No article ID, show download option
+                updateStatus('📱 Get SportEve to read amazing sports content!', true);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -219,7 +219,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     switch (_content!.type) {
       case ContentType.parentTip:
         final tip = _content!.parentTipContent!;
-        return '👨‍👩‍👧‍👦 ${tip.title}\n\n${tip.content}\n\nShared from SportEve App 🏆\n#ParentingTip #SportEve';
+        return '🏥 ${tip.title}\n\n${tip.content}\n\nShared from SportEve App 🏆\n#HealthTip #SportEve';
       case ContentType.didYouKnow:
         final fact = _content!.didYouKnowContent!;
         return '💡 Did you know? ${fact.fact}\n\n${fact.details}\n\nShared from SportEve App 🏆\n#DidYouKnow #SportEve';
@@ -731,7 +731,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   IconData _getContentTypeIcon() {
     switch (_content!.type) {
       case ContentType.parentTip:
-        return Icons.family_restroom;
+        return Icons.medical_services;
       case ContentType.didYouKnow:
         return Icons.lightbulb_outline;
       case ContentType.trivia:
@@ -742,7 +742,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   String _getContentTypeLabel() {
     switch (_content!.type) {
       case ContentType.parentTip:
-        return 'PARENTING TIP';
+        return 'HEALTH TIP';
       case ContentType.didYouKnow:
         return 'DID YOU KNOW';
       case ContentType.trivia:

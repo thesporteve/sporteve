@@ -1,6 +1,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import OpenAI from "openai";
+import {shouldOptimizeImage, convertImageToWebP} from "./image_utils";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -95,18 +96,38 @@ export const processNewsStaging = functions.firestore
           curatedLongDescription.substring(0, 2997) + "...";
       }
 
-      // Preserve all original fields and add curated content
+      // Step 2: Process image if it exists and needs optimization
+      console.log("🖼️  Checking for image optimization...");
+      let optimizedImageUrl = data.imageUrl;
+      
+      if (data.imageUrl && shouldOptimizeImage(data.imageUrl)) {
+        try {
+          console.log("🔄 Converting image to WebP:", data.imageUrl);
+          optimizedImageUrl = await convertImageToWebP(data.imageUrl);
+          console.log("✅ Image converted successfully:", optimizedImageUrl);
+        } catch (imageError) {
+          console.error("❌ Image conversion failed:", imageError);
+          // Continue with original image URL if conversion fails
+          optimizedImageUrl = data.imageUrl;
+        }
+      } else {
+        console.log("ℹ️  No image optimization needed");
+      }
+
+      // Preserve all original fields and add curated content + optimized image
       const publishedArticle: Record<string, unknown> = {
         ...data, // Preserve all original fields
         title: curatedTitle,
         summary: curatedLongDescription, // Long description for mobile
         content: curatedShortDescription, // Keep short version for reference
+        imageUrl: optimizedImageUrl, // Use optimized WebP URL
         publishedAt: admin.firestore.FieldValue.serverTimestamp(),
         curated_at: admin.firestore.FieldValue.serverTimestamp(),
         status: "published",
         original_title: data.title, // Keep original for reference
         original_summary: data.summary, // Keep original summary (description)
         original_content: data.content, // Keep original content for reference
+        original_imageUrl: data.imageUrl, // Keep original image URL for reference
       };
 
       // Remove staging-specific fields and any conflicting timestamp fields
@@ -144,15 +165,30 @@ export const processNewsStaging = functions.firestore
           fallbackLongDescription.substring(0, 2997) + "...";
       }
 
+      // Even in fallback, try to optimize image
+      let fallbackOptimizedImageUrl = data.imageUrl;
+      if (data.imageUrl && shouldOptimizeImage(data.imageUrl)) {
+        try {
+          console.log("🔄 Converting image to WebP (fallback mode):", data.imageUrl);
+          fallbackOptimizedImageUrl = await convertImageToWebP(data.imageUrl);
+          console.log("✅ Image converted successfully (fallback):", fallbackOptimizedImageUrl);
+        } catch (imageError) {
+          console.error("❌ Image conversion failed (fallback):", imageError);
+          fallbackOptimizedImageUrl = data.imageUrl;
+        }
+      }
+
       const fallbackArticle: Record<string, unknown> = {
         ...data,
         // Use original description (mobile only reads summary field)
         summary: fallbackLongDescription, // Long version for detail view
         content: fallbackShortDescription, // Short version for reference
+        imageUrl: fallbackOptimizedImageUrl, // Use optimized WebP URL even in fallback
         publishedAt: admin.firestore.FieldValue.serverTimestamp(),
         status: "published",
         curation_failed: true,
         error_message: errorMessage,
+        original_imageUrl: data.imageUrl, // Keep original image URL for reference
       };
 
       // Remove staging-specific fields and any conflicting timestamp fields
@@ -305,6 +341,50 @@ export const sendContentFeedNotification = functions.firestore
   });
 
 // Test notification function for debugging
+/**
+ * Clears all documents from news_staging collection
+ * Use this to remove old staging articles without processing them
+ */
+export const clearNewsStaging = functions.https.onCall(async () => {
+  try {
+    console.log("🧹 Clearing news_staging collection...");
+    
+    // Get all documents in news_staging
+    const stagingSnapshot = await db.collection("news_staging").get();
+    const articles = stagingSnapshot.docs;
+    
+    if (articles.length === 0) {
+      console.log("✅ No articles in staging to clear");
+      return {success: true, cleared: 0, message: "Staging collection is already empty"};
+    }
+    
+    console.log(`🗑️  Found ${articles.length} articles to clear from staging`);
+    
+    // Delete all staging documents
+    const batch = db.batch();
+    articles.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    
+    await batch.commit();
+    
+    const result = {
+      success: true,
+      cleared: articles.length,
+      message: `Cleared ${articles.length} articles from staging collection`
+    };
+    
+    console.log("✅ Successfully cleared staging collection:", result);
+    return result;
+    
+  } catch (error) {
+    console.error("❌ Failed to clear staging collection:", error);
+    const errorMessage = error instanceof Error ? 
+      error.message : "Unknown error occurred";
+    return {success: false, error: errorMessage};
+  }
+});
+
 export const testNotification = functions.https.onCall(async () => {
   console.log("🧪 TEST NOTIFICATION CALLED");
 

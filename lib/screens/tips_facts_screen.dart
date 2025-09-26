@@ -63,7 +63,7 @@ class _TipsFactsScreenState extends State<TipsFactsScreen> with TickerProviderSt
       final didYouKnows = content.where((c) => c.type == ContentType.didYouKnow).toList();
       
       print('✅ Loaded ${content.length} total content items');
-      print('👨‍👩‍👧‍👦 Parent Tips: ${parentTips.length}');
+      print('🏥 Health Tips: ${parentTips.length}');
       print('💡 Did You Know: ${didYouKnows.length}');
       
       // Generate dynamic sport categories from actual content
@@ -148,8 +148,8 @@ class _TipsFactsScreenState extends State<TipsFactsScreen> with TickerProviderSt
       
       // Switch to correct tab (now 0-based with only 2 tabs)
       if (content.type == ContentType.parentTip) {
-        _tabController.animateTo(0); // Parenting tab
-        print('📱 Switched to Parenting tab');
+        _tabController.animateTo(0); // Health Tips tab
+        print('📱 Switched to Health Tips tab');
       } else if (content.type == ContentType.didYouKnow) {
         _tabController.animateTo(1); // Did You Know tab
         print('📱 Switched to Did You Know tab');
@@ -311,7 +311,7 @@ class _TipsFactsScreenState extends State<TipsFactsScreen> with TickerProviderSt
         labelColor: Theme.of(context).colorScheme.primary,
         unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
         tabs: [
-          Tab(text: 'Parenting (${_parentTips.length})'),
+          Tab(text: 'Health Tips (${_parentTips.length})'),
           Tab(text: 'Did You Know (${_didYouKnows.length})'),
         ],
       ),
