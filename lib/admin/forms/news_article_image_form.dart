@@ -7,6 +7,8 @@ import '../../models/news_article.dart';
 import '../services/admin_data_service.dart';
 import '../providers/admin_auth_provider.dart';
 import '../theme/admin_theme.dart';
+import '../../services/sports_service.dart';
+import '../../models/sport_wiki.dart';
 
 class NewsArticleImageForm extends StatefulWidget {
   final NewsArticle? article;
@@ -48,54 +50,10 @@ class _NewsArticleImageFormState extends State<NewsArticleImageForm> {
   Map<String, String> _tournaments = {};
   Map<String, String> _athletes = {};
   List<Map<String, dynamic>> _availableAuthors = [];
-
-  final List<String> _categories = [
-    'archery',
-    'athletics',
-    'badminton',
-    'basketball',
-    'boxing',
-    'chess',
-    'cricket',
-    'discus_throw',
-    'diving',
-    'football',
-    'golf',
-    'hammer_throw',
-    'handball',
-    'high_jump',
-    'hockey',
-    'javelin_throw',
-    'judo',
-    'kabaddi',
-    'karate',
-    'kayaking',
-    'kho_kho',
-    'long_jump',
-    'marathon',
-    'pole_vault',
-    'race_walking',
-    'relay',
-    'rowing',
-    'rugby',
-    'running',
-    'sailing',
-    'sepak_takraw',
-    'shooting',
-    'shot_put',
-    'skating',
-    'skiing',
-    'soccer',
-    'soft_tennis',
-    'sprint',
-    'swimming',
-    'taekwondo',
-    'tennis',
-    'triple_jump',
-    'volleyball',
-    'weightlifting',
-    'wrestling',
-  ];
+  
+  // Dynamic sports management
+  List<SportWiki> _availableSports = [];
+  bool _sportsLoading = true;
 
   @override
   void initState() {
@@ -115,17 +73,58 @@ class _NewsArticleImageFormState extends State<NewsArticleImageForm> {
       final tournaments = await dataService.getTournamentOptions();
       final athletes = await dataService.getAthleteOptions();
       final authors = await authProvider.getActiveAdmins();
+      final sports = await SportsService().getActiveSports();
       
       if (mounted) {
         setState(() {
           _tournaments = tournaments;
           _athletes = athletes;
           _availableAuthors = authors;
+          _availableSports = sports;
+          _sportsLoading = false;
         });
       }
     } catch (e) {
-      print('Error loading options: $e');
+      debugPrint('Error loading options: $e');
+      if (mounted) {
+        setState(() {
+          _sportsLoading = false;
+        });
+      }
     }
+  }
+
+  // Helper method to get valid category value for dropdown
+  String? _getValidCategoryValue() {
+    if (_availableSports.isEmpty) return null;
+    
+    // Check if current selection exists in available sports
+    final sportsMatches = _availableSports
+        .where((sport) => sport.name == _selectedCategory);
+    final validSport = sportsMatches.isEmpty ? null : sportsMatches.first;
+    
+    if (validSport != null) {
+      return _selectedCategory;
+    }
+    
+    // If current selection is invalid, try to find by display name
+    final displayNameMatches = _availableSports
+        .where((sport) => sport.displayName?.toLowerCase() == _selectedCategory.toLowerCase());
+    final sportByDisplayName = displayNameMatches.isEmpty ? null : displayNameMatches.first;
+    
+    if (sportByDisplayName != null) {
+      // Update selected category to use the sport name
+      _selectedCategory = sportByDisplayName.name;
+      return _selectedCategory;
+    }
+    
+    // If no match found and we have sports available, default to first sport
+    if (_availableSports.isNotEmpty) {
+      _selectedCategory = _availableSports.first.name;
+      return _selectedCategory;
+    }
+    
+    return null;
   }
 
   void _populateFields(NewsArticle article) {
@@ -536,29 +535,49 @@ class _NewsArticleImageFormState extends State<NewsArticleImageForm> {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedCategory,
-                      decoration: const InputDecoration(
-                        labelText: 'Sport Category',
-                        hintText: 'Select sport',
-                      ),
-                      items: _categories.map((String category) {
-                        return DropdownMenuItem<String>(
-                          value: category,
-                          child: Text(category
-                              .split('_')
-                              .map((word) => word[0].toUpperCase() + word.substring(1))
-                              .join(' ')),
-                        );
-                      }).toList(),
-                      onChanged: (String? value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedCategory = value;
-                          });
-                        }
-                      },
-                    ),
+                    child: _sportsLoading
+                        ? const LinearProgressIndicator()
+                        : DropdownButtonFormField<String>(
+                            value: _getValidCategoryValue(),
+                            decoration: const InputDecoration(
+                              labelText: 'Sports Category',
+                              hintText: 'Select sport',
+                            ),
+                            items: _availableSports.map((sport) {
+                              final displayName = sport.displayName ?? sport.name;
+                              return DropdownMenuItem<String>(
+                                value: sport.name,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      SportsService.getSportIconFromWiki(sport),
+                                      size: 16,
+                                      color: SportsService.getSportColor(sport),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        displayName,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedCategory = value!;
+                              });
+                            },
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please select a sports category';
+                              }
+                              return null;
+                            },
+                          ),
                   ),
                 ],
               ),

@@ -4,6 +4,8 @@ import '../../models/athlete.dart';
 import '../services/admin_data_service.dart';
 import '../services/csv_service.dart';
 import '../theme/admin_theme.dart';
+import '../../services/sports_service.dart';
+import '../../models/sport_wiki.dart';
 
 class AthleteForm extends StatefulWidget {
   final Athlete? athlete;
@@ -39,15 +41,36 @@ class _AthleteFormState extends State<AthleteForm> {
 
   bool _isLoading = false;
 
-  // Popular sports from CSV service
-  final List<String> _popularSports = CsvService.supportedSports;
+  // Dynamic sports management
+  List<SportWiki> _availableSports = [];
+  bool _sportsLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _loadSports();
     
     if (widget.athlete != null) {
       _populateFields(widget.athlete!);
+    }
+  }
+
+  Future<void> _loadSports() async {
+    try {
+      final sports = await SportsService().getActiveSports();
+      if (mounted) {
+        setState(() {
+          _availableSports = sports;
+          _sportsLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading sports: $e');
+      if (mounted) {
+        setState(() {
+          _sportsLoading = false;
+        });
+      }
     }
   }
 
@@ -324,19 +347,25 @@ class _AthleteFormState extends State<AthleteForm> {
               const SizedBox(height: 16),
 
               // Sport
-              Autocomplete<String>(
-                initialValue: TextEditingValue(text: _sportController.text),
-                optionsBuilder: (TextEditingValue textEditingValue) {
-                  if (textEditingValue.text.isEmpty) {
-                    return const Iterable<String>.empty();
-                  }
-                  return _popularSports.where((sport) => 
-                    sport.toLowerCase().contains(textEditingValue.text.toLowerCase())
-                  );
-                },
-                onSelected: (String selection) {
-                  _sportController.text = selection;
-                },
+              _sportsLoading
+                  ? const LinearProgressIndicator()
+                  : Autocomplete<SportWiki>(
+                      initialValue: TextEditingValue(text: _sportController.text),
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        if (textEditingValue.text.isEmpty || _availableSports.isEmpty) {
+                          return const Iterable<SportWiki>.empty();
+                        }
+                        return _availableSports.where((sport) {
+                          final searchText = textEditingValue.text.toLowerCase();
+                          final sportName = sport.name.toLowerCase();
+                          final displayName = (sport.displayName ?? sport.name).toLowerCase();
+                          return sportName.contains(searchText) || displayName.contains(searchText);
+                        });
+                      },
+                      displayStringForOption: (SportWiki sport) => sport.displayName ?? sport.name,
+                      onSelected: (SportWiki selection) {
+                        _sportController.text = selection.displayName ?? selection.name;
+                      },
                 fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
                   return TextFormField(
                     controller: textEditingController,
@@ -344,21 +373,41 @@ class _AthleteFormState extends State<AthleteForm> {
                     decoration: InputDecoration(
                       labelText: 'Sport *',
                       hintText: 'Enter sport (e.g., Football, Tennis)',
-                      suffixIcon: PopupMenuButton<String>(
-                        icon: const Icon(Icons.arrow_drop_down),
-                        itemBuilder: (context) {
-                          return _popularSports.map((sport) {
-                            return PopupMenuItem<String>(
-                              value: sport,
-                              child: Text(sport),
-                            );
-                          }).toList();
-                        },
-                        onSelected: (sport) {
-                          textEditingController.text = sport;
-                          _sportController.text = sport;
-                        },
-                      ),
+                      suffixIcon: _availableSports.isNotEmpty 
+                          ? PopupMenuButton<SportWiki>(
+                              icon: const Icon(Icons.arrow_drop_down),
+                              itemBuilder: (context) {
+                                return _availableSports.take(10).map((sport) {
+                                  final displayName = sport.displayName ?? sport.name;
+                                  return PopupMenuItem<SportWiki>(
+                                    value: sport,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          SportsService.getSportIconFromWiki(sport),
+                                          size: 16,
+                                          color: SportsService.getSportColor(sport),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            displayName,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList();
+                              },
+                              onSelected: (sport) {
+                                final displayName = sport.displayName ?? sport.name;
+                                textEditingController.text = displayName;
+                                _sportController.text = displayName;
+                              },
+                            )
+                          : null,
                     ),
                     textCapitalization: TextCapitalization.words,
                     validator: (value) {
