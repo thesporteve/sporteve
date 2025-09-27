@@ -461,7 +461,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavItem(Icons.newspaper, 'News', true, () {}),
+          _buildNavItem(Icons.newspaper, 'News', true, _onNewsTabPressed),
           _buildNavItem(Icons.search, 'Search', false, () {
             context.push('/search');
           }),
@@ -503,6 +503,40 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  /// Handle News tab press - scroll to top and refresh (similar to back button behavior)
+  Future<void> _onNewsTabPressed() async {
+    if (_currentPage > 0) {
+      // User is scrolled down - animate to top and refresh
+      print('🔄 News tab pressed while scrolled down - going to top and refreshing');
+      
+      // Animate back to top smoothly
+      await _pageController.animateToPage(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      
+      // Add haptic feedback for better UX
+      HapticFeedback.lightImpact();
+      
+      // Trigger non-blocking refresh for fresh content
+      if (mounted) {
+        context.read<NewsProvider>().refreshInBackground();
+      }
+    } else {
+      // User is already at top - just refresh
+      print('🔄 News tab pressed at top - refreshing');
+      
+      // Add haptic feedback
+      HapticFeedback.lightImpact();
+      
+      // Trigger refresh
+      if (mounted) {
+        context.read<NewsProvider>().refreshInBackground();
+      }
+    }
   }
 
   /// Preload images for adjacent articles to improve loading speed

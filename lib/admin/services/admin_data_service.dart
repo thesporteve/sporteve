@@ -63,16 +63,22 @@ class AdminDataService {
   Future<void> updateNewsArticle(String articleId, NewsArticle article) async {
     try {
       final updateData = article.toJson();
-      // Add updatedAt field but preserve original publishedAt for proper ordering
+      
+      // CRITICAL: Never update publishedAt for existing articles to preserve original order
+      updateData.remove('publishedAt');
+      
+      // Add updatedAt field to track edit history
       updateData['updatedAt'] = DateTime.now().toIso8601String();
+      
+      print('🔄 Updating article $articleId (preserving original publishedAt)');
       
       await _firestore
           .collection('news_articles')
           .doc(articleId)
           .update(updateData);
-      print('Updated news article: $articleId');
+      print('✅ Updated news article: $articleId (publishedAt preserved)');
     } catch (e) {
-      print('Error updating news article: $e');
+      print('❌ Error updating news article: $e');
       rethrow;
     }
   }

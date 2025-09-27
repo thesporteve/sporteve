@@ -227,9 +227,14 @@ class SportsService {
   List<SportWiki> _generateFallbackSports() {
     final List<SportWiki> fallbackSports = [];
     
-    // Convert from SettingsProvider.availableSports (snake_case)
+    // Static fallback sports list (snake_case)
+    const staticSports = [
+      'football', 'cricket', 'basketball', 'tennis', 'hockey', 'badminton', 
+      'swimming', 'athletics', 'wrestling', 'boxing', 'kabaddi', 'volleyball'
+    ];
+    
     int sortOrder = 100;
-    for (final sport in SettingsProvider.availableSports) {
+    for (final sport in staticSports) {
       fallbackSports.add(SportWiki(
         id: 'static_$sport',
         name: sport,

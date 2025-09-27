@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../models/sport_wiki.dart';
 import '../services/admin_sports_wiki_service.dart';
+import '../services/ai_enhancement_service.dart';
 import '../theme/admin_theme.dart';
 
 class SportsWikiForm extends StatefulWidget {
@@ -66,6 +67,14 @@ class _SportsWikiFormState extends State<SportsWikiForm> {
 
   bool _isLoading = false;
   bool _isSaving = false;
+  
+  // AI Enhancement state
+  bool _isEnhancing = false;
+  AiEnhancementResult? _aiResult;
+  Map<String, dynamic> _aiGeneratedData = {};
+  
+  // Map for easy controller access
+  late Map<String, TextEditingController> _controllerMap;
 
   final List<String> _categories = ['Team Sport', 'Individual Sport', 'Mixed Sport'];
   final List<String> _types = ['Outdoor', 'Indoor', 'Water', 'Combat'];
@@ -102,6 +111,27 @@ class _SportsWikiFormState extends State<SportsWikiForm> {
     _iconNameController = TextEditingController();
     _primaryColorController = TextEditingController();
     _sortOrderController = TextEditingController();
+    
+    // Initialize controller map for AI enhancement
+    _controllerMap = {
+      'name': _nameController,
+      'description': _descriptionController,
+      'origin': _originController,
+      'governing_body': _governingBodyController,
+      'rules_summary': _rulesSummaryController,
+      'player_count': _playerCountController,
+      'seasonal_play': _seasonalPlayController,
+      'regional_popularity': _regionalPopularityController,
+      'iconic_moments': _iconicMomentsController,
+      'famous_athletes': _famousAthletesController,
+      'popular_events': _popularEventsController,
+      'equipment_needed': _equipmentNeededController,
+      'physical_demands': _physicalDemandsController,
+      'fun_facts': _funFactsController,
+      'tags': _tagsController,
+      'related_sports': _relatedSportsController,
+      'indian_milestones': _indianMilestonesController,
+    };
   }
 
   void _populateFormIfEditing() {
@@ -462,6 +492,158 @@ class _SportsWikiFormState extends State<SportsWikiForm> {
         });
       }
     }
+  }
+
+  /// Enhance sports wiki using AI
+  Future<void> _enhanceWithAI() async {
+    // Validate required fields first
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Please enter sport name first'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isEnhancing = true;
+      _aiResult = null;
+      _aiGeneratedData.clear();
+    });
+
+    try {
+      // Prepare current data for AI analysis
+      final currentData = AiEnhancementService.instance.sportsWikiToCurrentData(
+        _controllerMap,
+        selectedCategory: _selectedCategory,
+        selectedType: _selectedType,
+        selectedDifficulty: _selectedDifficulty,
+        isOlympicSport: _isOlympicSport,
+        isActive: _isActive,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text('🤖 AI is enhancing ${_nameController.text.trim()}...'),
+            ],
+          ),
+          backgroundColor: Colors.blue[700],
+          duration: const Duration(seconds: 3),
+        ),
+      );
+
+      // Call AI enhancement service
+      final result = await AiEnhancementService.instance.enhanceSportsWiki(
+        sportName: _nameController.text.trim(),
+        category: _selectedCategory,
+        currentData: currentData,
+      );
+
+      setState(() {
+        _aiResult = result;
+        _aiGeneratedData = Map<String, dynamic>.from(result.enhancedData.fields);
+      });
+
+      // Show success message with confidence
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  result.enhancedData.confidence >= 60 ? Icons.check_circle : Icons.warning,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '✅ AI enhanced ${_aiGeneratedData.length} fields with ${result.enhancedData.confidence}% confidence',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: result.enhancedData.confidence >= 60 ? Colors.green[600] : Colors.orange[600],
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Review',
+              textColor: Colors.white,
+              onPressed: () {
+                // Scroll to confidence section if needed
+              },
+            ),
+          ),
+        );
+      }
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ AI Enhancement failed: ${e.toString()}'),
+            backgroundColor: Colors.red[600],
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isEnhancing = false;
+        });
+      }
+    }
+  }
+
+  /// Apply AI enhancements to form controllers
+  void _applyAIEnhancements() {
+    if (_aiResult != null) {
+      AiEnhancementService.instance.applySportsWikiEnhancementToControllers(
+        result: _aiResult!,
+        controllers: _controllerMap,
+      );
+
+      setState(() {
+        _aiResult = null; // Hide the preview after applying
+        _aiGeneratedData.clear();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ AI enhancements applied to form'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// Reject AI enhancements
+  void _rejectAIEnhancements() {
+    setState(() {
+      _aiResult = null;
+      _aiGeneratedData.clear();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('❌ AI enhancements rejected'),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   Widget _buildFormField({
@@ -897,6 +1079,12 @@ class _SportsWikiFormState extends State<SportsWikiForm> {
                   // Image Upload Section
                   _buildImageUploadSection(),
             
+            // AI Enhancement Results Display
+            if (_aiResult != null) ...[
+              const SizedBox(height: 16),
+              _buildAIEnhancementResults(),
+            ],
+            
             // Action buttons
             Container(
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -906,8 +1094,33 @@ class _SportsWikiFormState extends State<SportsWikiForm> {
                 ),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  // AI Enhancement Button
+                  ElevatedButton.icon(
+                    onPressed: _isEnhancing ? null : _enhanceWithAI,
+                    icon: _isEnhancing 
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.auto_awesome, size: 18),
+                    label: Text(_isEnhancing ? 'Enhancing...' : 'Enhance with AI'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple[600],
+                      foregroundColor: Colors.white,
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  
+                  const Spacer(),
+                  
                   TextButton(
                     onPressed: _isSaving ? null : widget.onCancel,
                     child: const Text('Cancel'),
@@ -941,6 +1154,249 @@ class _SportsWikiFormState extends State<SportsWikiForm> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Build AI Enhancement Results Display (reusing athlete form design)
+  Widget _buildAIEnhancementResults() {
+    if (_aiResult == null) return const SizedBox.shrink();
+
+    final confidence = _aiResult!.enhancedData.confidence;
+    final fieldsCount = _aiGeneratedData.length;
+    
+    // Confidence color based on percentage
+    Color confidenceColor = Colors.red;
+    if (confidence >= 80) {
+      confidenceColor = Colors.green;
+    } else if (confidence >= 60) {
+      confidenceColor = Colors.orange;
+    }
+
+    return Card(
+      elevation: 4,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: confidenceColor.withOpacity(0.3)),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              confidenceColor.withOpacity(0.05),
+              confidenceColor.withOpacity(0.02),
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with confidence meter
+              Row(
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    color: confidenceColor,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'AI Enhancement Results',
+                    style: AdminTheme.titleMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: confidenceColor,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: confidenceColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: confidenceColor.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          confidence >= 80 ? Icons.check_circle : 
+                          confidence >= 60 ? Icons.warning : Icons.error,
+                          size: 16,
+                          color: confidenceColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$confidence% confidence',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: confidenceColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Confidence description and field count
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _aiResult!.enhancedData.confidenceDescription,
+                      style: AdminTheme.bodyMedium.copyWith(
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$fieldsCount fields enhanced',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.blue[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Action buttons
+              Row(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _applyAIEnhancements,
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text('Apply Enhancements'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[600],
+                      foregroundColor: Colors.white,
+                      elevation: 1,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  TextButton.icon(
+                    onPressed: _rejectAIEnhancements,
+                    icon: const Icon(Icons.close, size: 18),
+                    label: const Text('Reject'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red[600],
+                    ),
+                  ),
+                  const Spacer(),
+                  if (_aiResult!.usage != null) ...[
+                    Tooltip(
+                      message: 'Estimated cost based on token usage',
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.attach_money,
+                              size: 14,
+                              color: Colors.grey[600],
+                            ),
+                            Text(
+                              '\$${_aiResult!.usage!.estimatedCost.toStringAsFixed(4)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[700],
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              
+              // Enhanced fields preview (collapsible)
+              if (_aiGeneratedData.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                ExpansionTile(
+                  title: Text(
+                    'Preview Enhanced Fields',
+                    style: AdminTheme.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  initiallyExpanded: false,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: _aiGeneratedData.entries.map((entry) {
+                          final value = entry.value;
+                          final displayValue = value is List 
+                              ? value.join(', ')
+                              : value.toString();
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  entry.key.replaceAll('_', ' ').toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  displayValue,
+                                  style: AdminTheme.bodySmall.copyWith(
+                                    color: Colors.grey[800],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

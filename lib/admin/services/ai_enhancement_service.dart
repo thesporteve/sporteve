@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../../models/athlete.dart';
 
@@ -62,6 +63,80 @@ class AiEnhancementService {
     };
   }
 
+  /// Enhance sports wiki profile using AI
+  /// Returns AI-generated data for missing sports fields only
+  Future<AiEnhancementResult> enhanceSportsWiki({
+    required String sportName,
+    required String category,
+    required Map<String, dynamic> currentData,
+  }) async {
+    try {
+      print('🏅 Requesting AI enhancement for: $sportName ($category)');
+      
+      // Call Cloud Function
+      final HttpsCallable callable = _functions.httpsCallable('enhanceSportsWiki');
+      final result = await callable.call({
+        'sportName': sportName,
+        'category': category,
+        'currentData': currentData,
+      });
+
+      final data = result.data as Map<String, dynamic>;
+      print('📊 AI Sports Enhancement response: ${data['success'] ? 'SUCCESS' : 'FAILED'}');
+
+      if (data['success'] == true) {
+        return AiEnhancementResult.fromJson(data);
+      } else {
+        throw Exception(data['message'] ?? 'AI sports enhancement failed');
+      }
+
+    } catch (e) {
+      print('❌ AI Sports Enhancement error: $e');
+      throw Exception('Failed to enhance sports wiki: $e');
+    }
+  }
+
+  /// Convert current SportWiki object to data map for AI enhancement
+  Map<String, dynamic> sportsWikiToCurrentData(Map<String, TextEditingController> controllers, {
+    String? selectedCategory,
+    String? selectedType,
+    String? selectedDifficulty,
+    bool? isOlympicSport,
+    bool? isActive,
+  }) {
+    return {
+      // Basic Information (not enhanced by AI)
+      'name': controllers['name']?.text ?? '',
+      'description': controllers['description']?.text ?? '',
+      'category': selectedCategory ?? '',
+      'type': selectedType ?? '',
+      'difficulty': selectedDifficulty ?? '',
+      'is_olympic_sport': isOlympicSport ?? false,
+      'is_active': isActive ?? true,
+      
+      // Detailed Information section fields (AI-enhanced)
+      'origin': controllers['origin']?.text ?? '',
+      'governing_body': controllers['governing_body']?.text ?? '',
+      'rules_summary': controllers['rules_summary']?.text ?? '',
+      'player_count': controllers['player_count']?.text ?? '',
+      'seasonal_play': controllers['seasonal_play']?.text ?? '',
+      
+      // Lists & Details section fields (AI-enhanced)
+      'famous_athletes': controllers['famous_athletes']?.text ?? '',
+      'popular_events': controllers['popular_events']?.text ?? '',
+      'equipment_needed': controllers['equipment_needed']?.text ?? '',
+      'physical_demands': controllers['physical_demands']?.text ?? '',
+      'fun_facts': controllers['fun_facts']?.text ?? '',
+      'tags': controllers['tags']?.text ?? '',
+      'related_sports': controllers['related_sports']?.text ?? '',
+      
+      // Indian Context section fields (AI-enhanced)
+      'indian_milestones': controllers['indian_milestones']?.text ?? '',
+      'regional_popularity': controllers['regional_popularity']?.text ?? '',
+      'iconic_moments': controllers['iconic_moments']?.text ?? '',
+    };
+  }
+
   /// Apply AI enhancement results to form controllers and data
   void applyEnhancementToForm({
     required AiEnhancementResult result,
@@ -74,6 +149,33 @@ class AiEnhancementService {
     fields.forEach((fieldName, value) {
       print('🎯 Applying AI field: $fieldName = $value');
       onFieldUpdate(fieldName, value);
+    });
+  }
+
+  /// Apply sports wiki enhancement results to form controllers
+  void applySportsWikiEnhancementToControllers({
+    required AiEnhancementResult result,
+    required Map<String, TextEditingController> controllers,
+  }) {
+    final fields = result.enhancedData.fields;
+
+    // Apply each enhanced field to corresponding controller
+    fields.forEach((fieldName, value) {
+      final controller = controllers[fieldName];
+      if (controller != null) {
+        // Handle different data types
+        if (value is List) {
+          // Convert list to newline-separated string for text fields
+          controller.text = (value as List).join('\n');
+        } else if (value is String) {
+          controller.text = value;
+        } else {
+          controller.text = value.toString();
+        }
+        print('🎯 Applied AI field to controller: $fieldName = ${controller.text}');
+      } else {
+        print('⚠️ Controller not found for field: $fieldName');
+      }
     });
   }
 }

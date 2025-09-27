@@ -1,58 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/sports_service.dart';
+import '../models/sport_wiki.dart';
 
 class SettingsProvider extends ChangeNotifier {
   static const String _themeKey = 'app_theme';
   static const String _sportsPreferencesKey = 'sports_preferences';
   
-  // Available sports categories
-  static const List<String> availableSports = [
-    'archery',
-    'athletics',
-    'badminton',
-    'basketball',
-    'boxing',
-    'chess',
-    'cricket',
-    'discus_throw',
-    'diving',
-    'football',
-    'golf',
-    'hammer_throw',
-    'handball',
-    'high_jump',
-    'hockey',
-    'javelin_throw',
-    'judo',
-    'kabaddi',
-    'karate',
-    'kayaking',
-    'kho_kho',
-    'long_jump',
-    'marathon',
-    'pole_vault',
-    'race_walking',
-    'relay',
-    'rowing',
-    'rugby',
-    'running',
-    'sailing',
-    'sepak_takraw',
-    'shooting',
-    'shot_put',
-    'skating',
-    'skiing',
-    'soccer',
-    'soft_tennis',
-    'sprint',
-    'swimming',
-    'taekwondo',
-    'tennis',
-    'triple_jump',
-    'volleyball',
-    'weightlifting',
-    'wrestling',
-  ];
+  // Dynamic sports management
+  List<SportWiki> _availableSports = [];
+  bool _sportsLoaded = false;
 
   ThemeMode _themeMode = ThemeMode.dark; // Default to dark
   Set<String> _selectedSports = {}; // Empty = show all sports
@@ -63,10 +20,32 @@ class SettingsProvider extends ChangeNotifier {
   Set<String> get selectedSports => Set.from(_selectedSports);
   bool get isLoaded => _isLoaded;
   bool get showAllSports => _selectedSports.isEmpty;
+  List<SportWiki> get availableSports => List.from(_availableSports);
+  bool get sportsLoaded => _sportsLoaded;
   
   // Check if a sport should be shown based on user preferences
   bool shouldShowSport(String category) {
     return showAllSports || _selectedSports.contains(category);
+  }
+
+  // Load available sports from SportsService
+  Future<void> loadSports() async {
+    if (_sportsLoaded) return;
+    
+    try {
+      final sports = await SportsService().getActiveSports();
+      _availableSports = sports;
+      _sportsLoaded = true;
+      notifyListeners();
+      
+      debugPrint('Settings: Loaded ${sports.length} sports dynamically');
+    } catch (e) {
+      debugPrint('Error loading sports: $e');
+      // Use empty list as fallback - app will still work
+      _availableSports = [];
+      _sportsLoaded = true;
+      notifyListeners();
+    }
   }
 
   // Initialize settings from local storage
@@ -88,11 +67,15 @@ class SettingsProvider extends ChangeNotifier {
       _selectedSports = sportsPrefs.toSet();
       
       _isLoaded = true;
+      
+      // Load dynamic sports as well
+      await loadSports();
+      
       notifyListeners();
       
-      print('Settings loaded: Theme=$themeString, Sports=${_selectedSports.length}');
+      debugPrint('Settings loaded: Theme=$themeString, Sports=${_selectedSports.length}');
     } catch (e) {
-      print('Error loading settings: $e');
+      debugPrint('Error loading settings: $e');
       _isLoaded = true;
       notifyListeners();
     }
@@ -163,8 +146,15 @@ class SettingsProvider extends ChangeNotifier {
     await updateSportsPreferences(sports);
   }
 
-  // Get display name for sport
-  static String getSportDisplayName(String sport) {
+  // Get display name for sport - uses dynamic data when available
+  String getSportDisplayName(String sport) {
+    final matches = _availableSports.where((s) => s.name == sport);
+    final sportWiki = matches.isEmpty ? null : matches.first;
+    return sportWiki?.displayName ?? _formatSportName(sport);
+  }
+
+  // Static fallback for display names
+  static String _formatSportName(String sport) {
     return sport
         .split('_')
         .map((word) => word[0].toUpperCase() + word.substring(1))
@@ -172,9 +162,12 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   // Get available sports with display names
-  static List<MapEntry<String, String>> getAvailableSportsWithNames() {
-    return availableSports
-        .map((sport) => MapEntry(sport, getSportDisplayName(sport)))
+  List<MapEntry<String, String>> getAvailableSportsWithNames() {
+    return _availableSports
+        .map((sport) => MapEntry(sport.name, sport.displayName ?? _formatSportName(sport.name)))
         .toList();
   }
+
+  // Get list of sport names (for backwards compatibility)
+  List<String> get availableSportNames => _availableSports.map((s) => s.name).toList();
 }

@@ -11,6 +11,7 @@ import '../providers/news_provider.dart';
 import '../services/like_service.dart';
 import '../services/share_service.dart';
 import '../services/firebase_image_service.dart';
+import '../providers/settings_provider.dart';
 
 class NewsCard extends StatefulWidget {
   final NewsArticle article;
@@ -624,15 +625,22 @@ class _NewsCardState extends State<NewsCard> {
     }
   }
 
-  /// Format category name for better display (fixes underscores and capitalization)
+  /// Format category name using dynamic sports data with static fallback
   String _formatCategory(String category) {
-    return category
-        .replaceAll('_', ' ')  // Replace underscores with spaces
-        .split(' ')
-        .map((word) => word.isNotEmpty 
-            ? word[0].toUpperCase() + word.substring(1).toLowerCase()
-            : word)
-        .join(' ');
+    try {
+      // Try to get dynamic display name from SettingsProvider
+      final settingsProvider = context.read<SettingsProvider>();
+      return settingsProvider.getSportDisplayName(category);
+    } catch (e) {
+      // Fallback to static formatting if provider not available
+      return category
+          .replaceAll('_', ' ')  // Replace underscores with spaces
+          .split(' ')
+          .map((word) => word.isNotEmpty 
+              ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+              : word)
+          .join(' ');
+    }
   }
 
   String _formatViews(int views) {

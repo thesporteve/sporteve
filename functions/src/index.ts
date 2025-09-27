@@ -1321,3 +1321,290 @@ function parseAIResponse(aiResponse: string, requestedFields: string[]): any {
     };
   }
 }
+
+/**
+ * AI-Enhanced Sports Wiki Enhancement
+ * Fetches missing sports information using AI
+ */
+export const enhanceSportsWiki = functions.https.onCall(
+  async (data, context) => {
+    // Validate input
+    if (!data.sportName || typeof data.sportName !== "string") {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Sport name is required and must be a string"
+      );
+    }
+
+    if (!data.category || typeof data.category !== "string") {
+      throw new functions.https.HttpsError(
+        "invalid-argument", 
+        "Sport category is required and must be a string"
+      );
+    }
+
+    const sportName = data.sportName.trim();
+    const category = data.category.trim();
+    const currentData = data.currentData || {};
+
+    console.log(`🏅 Enhancing sports wiki for: ${sportName} (${category})`);
+    console.log("📋 Current data:", JSON.stringify(currentData, null, 2));
+
+    try {
+      // Build prompt based on missing fields
+      const missingFields = identifySportsWikiMissingFields(currentData);
+      
+      if (missingFields.length === 0) {
+        return {
+          success: true,
+          message: "No missing fields to enhance",
+          enhancedData: {
+            confidence: 100,
+            sport_found: true,
+            source_reliability: "complete",
+            fields: {},
+            notes: "All target fields already have content",
+          },
+        };
+      }
+
+      console.log("🎯 Missing sports wiki fields to enhance:", missingFields);
+
+      const prompt = buildSportsWikiEnhancementPrompt(
+        sportName, 
+        category, 
+        missingFields,
+        currentData
+      );
+
+      console.log("🤖 Sending sports wiki request to OpenAI...");
+      
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3, // Lower temperature for more factual responses
+        max_tokens: 2500, // Slightly more tokens for sports data
+      });
+
+      const aiResponse = response.choices[0]?.message?.content;
+      if (!aiResponse) {
+        throw new Error("No response from OpenAI");
+      }
+
+      console.log("✅ AI Sports Response received:", aiResponse.substring(0, 200) + "...");
+
+      // Parse AI response
+      const enhancedData = parseSportsWikiAIResponse(aiResponse, missingFields);
+      
+      console.log("📊 Parsed sports enhanced data:", JSON.stringify(enhancedData, null, 2));
+
+      return {
+        success: true,
+        message: `Successfully enhanced ${Object.keys(enhancedData.fields || {}).length} sports fields`,
+        enhancedData,
+        usage: {
+          promptTokens: response.usage?.prompt_tokens || 0,
+          completionTokens: response.usage?.completion_tokens || 0,
+          totalTokens: response.usage?.total_tokens || 0,
+        },
+      };
+
+    } catch (error) {
+      console.error("❌ Error enhancing sports wiki:", error);
+      
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error occurred",
+        enhancedData: {},
+        error: {
+          code: error instanceof functions.https.HttpsError ? error.code : "internal",
+          details: error instanceof Error ? error.message : "Unknown error",
+        },
+      };
+    }
+  }
+);
+
+/**
+ * Identify which sports wiki fields are missing or empty
+ */
+function identifySportsWikiMissingFields(currentData: any): string[] {
+  const missingFields: string[] = [];
+  
+  // Detailed Information section fields
+  const detailedInfoFields = [
+    'origin', 'governing_body', 'rules_summary', 'player_count', 'seasonal_play'
+  ];
+  
+  // Lists & Details section fields  
+  const listsDetailsFields = [
+    'famous_athletes', 'popular_events', 'equipment_needed', 
+    'physical_demands', 'fun_facts', 'tags', 'related_sports'
+  ];
+  
+  // Indian Context section fields
+  const indianContextFields = [
+    'indian_milestones', 'regional_popularity', 'iconic_moments'
+  ];
+  
+  const allTargetFields = [...detailedInfoFields, ...listsDetailsFields, ...indianContextFields];
+  
+  for (const field of allTargetFields) {
+    const value = currentData[field];
+    if (!value || 
+        (typeof value === 'string' && value.trim() === '') ||
+        (Array.isArray(value) && value.length === 0)) {
+      missingFields.push(field);
+    }
+  }
+  
+  console.log(`🔍 Sports wiki field analysis: ${missingFields.length}/${allTargetFields.length} fields missing`);
+  
+  return missingFields;
+}
+
+/**
+ * Build AI prompt for sports wiki enhancement
+ */
+function buildSportsWikiEnhancementPrompt(
+  sportName: string,
+  category: string, 
+  missingFields: string[],
+  currentData: any
+): string {
+  return `
+You are an expert sports historian and researcher. I need you to find accurate information about a sport and provide ONLY the missing information requested.
+
+**SPORT:** ${sportName}
+**CATEGORY:** ${category}
+
+**CURRENT KNOWN INFORMATION:**
+${Object.keys(currentData).length > 0 ? JSON.stringify(currentData, null, 2) : "None"}
+
+**MISSING FIELDS TO RESEARCH:** ${missingFields.join(", ")}
+
+Please research this sport from reliable sources and provide accurate information for ONLY the missing fields listed above.
+
+**IMPORTANT RULES:**
+1. ONLY provide information for the missing fields I specified
+2. Never include basic info like name, description, category, type in your response
+3. Be factually accurate - if you're unsure, indicate lower confidence
+4. For lists (athletes, events, equipment), provide 3-6 relevant items per list
+5. For Indian context, focus on India-specific information and achievements
+6. Use proper formatting for lists (one item per line or array format)
+7. Keep descriptions concise but informative
+
+**FIELD DESCRIPTIONS:**
+- origin: Historical background and where/when the sport originated
+- governing_body: Official international/national organizations
+- rules_summary: Brief overview of basic rules and gameplay
+- player_count: Number of players per team or if individual sport
+- seasonal_play: When the sport is typically played (seasons/year-round)
+- famous_athletes: Notable players from around the world
+- popular_events: Major tournaments, championships, leagues
+- equipment_needed: Essential equipment and gear required
+- physical_demands: Key physical requirements and fitness aspects
+- fun_facts: Interesting trivia and lesser-known facts
+- tags: Relevant keywords and descriptors
+- related_sports: Similar or related sports
+- indian_milestones: Key achievements and milestones in Indian sports history
+- regional_popularity: Popular states/regions in India
+- iconic_moments: Memorable moments that defined the sport in India
+
+**RESPONSE FORMAT (JSON):**
+{
+  "confidence": 85,
+  "sport_found": true,
+  "source_reliability": "high",
+  "fields": {
+    "origin": "Historical background of the sport...",
+    "governing_body": "International Cricket Council (ICC)",
+    "rules_summary": "Brief rules overview...",
+    "player_count": "11 players per team",
+    "seasonal_play": "Year-round with peak seasons",
+    "famous_athletes": ["Athlete 1", "Athlete 2", "Athlete 3"],
+    "popular_events": ["Event 1", "Event 2", "Event 3"],
+    "equipment_needed": ["Equipment 1", "Equipment 2"],
+    "physical_demands": ["Demand 1", "Demand 2"],
+    "fun_facts": ["Fact 1", "Fact 2"],
+    "tags": ["tag1", "tag2", "tag3"],
+    "related_sports": ["Sport 1", "Sport 2"],
+    "indian_milestones": ["Milestone 1", "Milestone 2"],
+    "regional_popularity": "Popular regions in India...",
+    "iconic_moments": ["Moment 1", "Moment 2"]
+  },
+  "notes": "Additional context or reliability notes"
+}
+
+If you cannot find reliable information about this sport, respond with:
+{
+  "confidence": 0,
+  "sport_found": false,
+  "source_reliability": "none",
+  "fields": {},
+  "notes": "No reliable information found for this sport"
+}
+
+Research and respond with accurate JSON only:`;
+}
+
+/**
+ * Parse sports wiki AI response into structured data
+ */
+function parseSportsWikiAIResponse(aiResponse: string, requestedFields: string[]): any {
+  try {
+    // Clean up the response - sometimes AI adds markdown formatting
+    let cleanResponse = aiResponse.trim();
+    
+    // Remove markdown code blocks if present
+    if (cleanResponse.startsWith("```json")) {
+      cleanResponse = cleanResponse.replace(/```json\n?/, "").replace(/\n?```$/, "");
+    } else if (cleanResponse.startsWith("```")) {
+      cleanResponse = cleanResponse.replace(/```\n?/, "").replace(/\n?```$/, "");
+    }
+    
+    const parsed = JSON.parse(cleanResponse);
+    
+    // Validate response structure
+    if (typeof parsed.confidence !== "number") {
+      parsed.confidence = 50; // Default confidence
+    }
+    
+    if (typeof parsed.sport_found !== "boolean") {
+      parsed.sport_found = false;
+    }
+    
+    if (!parsed.fields || typeof parsed.fields !== "object") {
+      parsed.fields = {};
+    }
+    
+    // Filter to only requested fields (additional safety)
+    const filteredFields: any = {};
+    for (const field of requestedFields) {
+      if (parsed.fields[field] !== undefined) {
+        filteredFields[field] = parsed.fields[field];
+      }
+    }
+    parsed.fields = filteredFields;
+    
+    console.log("🎯 Successfully parsed sports wiki AI response:", {
+      confidence: parsed.confidence,
+      found: parsed.sport_found,
+      fieldsEnhanced: Object.keys(parsed.fields),
+    });
+    
+    return parsed;
+    
+  } catch (error) {
+    console.error("❌ Error parsing sports wiki AI response:", error);
+    console.log("📄 Raw sports AI response:", aiResponse);
+    
+    return {
+      confidence: 0,
+      sport_found: false,
+      source_reliability: "error",
+      fields: {},
+      notes: `Error parsing sports AI response: ${error instanceof Error ? error.message : "Unknown error"}`,
+    };
+  }
+}

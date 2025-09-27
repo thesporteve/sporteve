@@ -319,7 +319,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSportsGrid(SettingsProvider settings) {
-    final sportsWithNames = SettingsProvider.getAvailableSportsWithNames();
+    // Show loading indicator if sports aren't loaded yet
+    if (!settings.sportsLoaded) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
+    final sportsWithNames = settings.getAvailableSportsWithNames();
     
     return Wrap(
       spacing: 8,

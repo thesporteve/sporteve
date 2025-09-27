@@ -288,9 +288,16 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _loadSupportedSports() {
-    // Load supported sports from SettingsProvider
-    final supportedSports = SettingsProvider.availableSports
-        .map((sport) => SettingsProvider.getSportDisplayName(sport))
+    final settingsProvider = context.read<SettingsProvider>();
+    
+    if (!settingsProvider.sportsLoaded) {
+      // Sports not loaded yet, will be called again when loaded
+      return;
+    }
+    
+    // Load supported sports from SettingsProvider (now dynamic)
+    final supportedSports = settingsProvider.availableSports
+        .map((sport) => settingsProvider.getSportDisplayName(sport.name))
         .toList();
     supportedSports.sort(); // Sort alphabetically
     
@@ -308,6 +315,21 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return Consumer<SettingsProvider>(
+      builder: (context, settingsProvider, child) {
+        // Reload sports categories when they become available
+        if (settingsProvider.sportsLoaded && _categories.length == 1) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _loadSupportedSports();
+          });
+        }
+        
+        return _buildSearchScreen(context);
+      },
+    );
+  }
+  
+  Widget _buildSearchScreen(BuildContext context) {
     return PopScope(
       onPopInvoked: (didPop) {
         // Ensure keyboard is dismissed when navigating back

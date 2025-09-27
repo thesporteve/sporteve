@@ -12,6 +12,8 @@ import '../models/news_article.dart';
 import '../widgets/news_card.dart';
 import '../services/bookmark_service.dart';
 import '../services/firebase_image_service.dart';
+import '../providers/settings_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class NewsDetailScreen extends StatefulWidget {
   final String newsId;
@@ -250,13 +252,18 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                 
                 const SizedBox(height: 16),
                 
-                // Meta Information
-                _buildMetaInfo(),
+                // Meta Information (Author and Date only)
+                _buildAuthorInfo(),
                 
                 const SizedBox(height: 24),
                 
                 // Content
                 _buildContent(),
+                
+                const SizedBox(height: 24),
+                
+                // Source and Engagement Stats (moved below content)
+                _buildSourceAndEngagementStats(),
                 
                 const SizedBox(height: 32),
                 
@@ -388,7 +395,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
     );
   }
 
-  Widget _buildMetaInfo() {
+  Widget _buildAuthorInfo() {
     return Row(
       children: [
         CircleAvatar(
@@ -425,6 +432,247 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildEngagementStats() {
+    // Don't show if all metrics are 0
+    if (_article!.views == 0 && _article!.likes == 0 && _article!.shares == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Views
+          if (_article!.views > 0) ...[
+            Icon(
+              Icons.visibility,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _formatViews(_article!.views),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+          
+          // Likes
+          if (_article!.likes > 0) ...[
+            if (_article!.views > 0) ...[
+              Container(
+                width: 4,
+                height: 4,
+                margin: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+            Icon(
+              Icons.favorite,
+              size: 16,
+              color: Colors.red.withOpacity(0.8),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _formatViews(_article!.likes),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+          
+          // Shares
+          if (_article!.shares > 0) ...[
+            if (_article!.views > 0 || _article!.likes > 0) ...[
+              Container(
+                width: 4,
+                height: 4,
+                margin: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+            Icon(
+              Icons.share,
+              size: 16,
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _formatViews(_article!.shares),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+          
+          const Spacer(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSourceAndEngagementStats() {
+    final bool hasEngagementStats = _article!.views > 0 || _article!.likes > 0 || _article!.shares > 0;
+    final bool hasSource = _article!.source.isNotEmpty;
+    
+    // Don't show section if no data
+    if (!hasEngagementStats && !hasSource) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Source section (if available)
+          if (hasSource) ...[
+            Row(
+              children: [
+                Text(
+                  'Source: ',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _launchSourceUrl,
+                    child: Text(
+                      _article!.source,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontSize: 14,
+                        decoration: TextDecoration.underline,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            
+            if (hasEngagementStats) const SizedBox(height: 12),
+          ],
+          
+          // Engagement stats section (if available)
+          if (hasEngagementStats) ...[
+            Row(
+              children: [
+                // Views
+                if (_article!.views > 0) ...[
+                  Icon(
+                    Icons.visibility,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _formatViews(_article!.views),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+                
+                // Likes
+                if (_article!.likes > 0) ...[
+                  if (_article!.views > 0) ...[
+                    Container(
+                      width: 4,
+                      height: 4,
+                      margin: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                  Icon(
+                    Icons.favorite,
+                    size: 16,
+                    color: Colors.red.withOpacity(0.8),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _formatViews(_article!.likes),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+                
+                // Shares
+                if (_article!.shares > 0) ...[
+                  if (_article!.views > 0 || _article!.likes > 0) ...[
+                    Container(
+                      width: 4,
+                      height: 4,
+                      margin: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                  Icon(
+                    Icons.share,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _formatViews(_article!.shares),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -558,16 +806,90 @@ Read the full story in SportEve - Your Daily Sports Pulse! 📱
     }
   }
 
-  /// Format category name for better display (fixes underscores and capitalization)
+  /// Format category name using dynamic sports data with static fallback
   String _formatCategory(String category) {
-    return category
-        .replaceAll('_', ' ')  // Replace underscores with spaces
-        .split(' ')
-        .map((word) => word.isNotEmpty 
-            ? word[0].toUpperCase() + word.substring(1).toLowerCase()
-            : word)
-        .join(' ');
+    try {
+      // Try to get dynamic display name from SettingsProvider
+      final settingsProvider = context.read<SettingsProvider>();
+      return settingsProvider.getSportDisplayName(category);
+    } catch (e) {
+      // Fallback to static formatting if provider not available
+      return category
+          .replaceAll('_', ' ')  // Replace underscores with spaces
+          .split(' ')
+          .map((word) => word.isNotEmpty 
+              ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+              : word)
+          .join(' ');
+    }
   }
+
+  /// Launch source URL in external browser
+  Future<void> _launchSourceUrl() async {
+    if (_article?.sourceUrl == null || _article!.sourceUrl!.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No source URL available for ${_article!.source}'),
+            backgroundColor: Colors.orange[600],
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      final Uri url = Uri.parse(_article!.sourceUrl!);
+      
+      // Try to launch URL directly without checking canLaunchUrl first
+      // This avoids the component name issue and is more reliable
+      await launchUrl(
+        url, 
+        mode: LaunchMode.externalApplication,
+        webOnlyWindowName: '_blank',
+      );
+      
+      // Show success feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Opening source...'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      // If direct launch fails, try alternative approach
+      try {
+        final Uri url = Uri.parse(_article!.sourceUrl!);
+        await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Opening in app browser...'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+      } catch (e2) {
+        debugPrint('Error launching URL: $e2');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not open source: ${_article!.source}'),
+              backgroundColor: Colors.red[600],
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    }
+  }
+
 
   /// Enhanced network image builder for detail screen with Firebase Storage optimization
   Widget _buildDetailNetworkImage() {

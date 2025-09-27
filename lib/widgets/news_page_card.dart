@@ -13,6 +13,9 @@ import '../services/like_service.dart';
 import '../services/share_service.dart';
 import '../providers/news_provider.dart';
 import '../services/firebase_image_service.dart';
+import '../services/sports_service.dart';
+import '../providers/settings_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class NewsPageCard extends StatefulWidget {
   final NewsArticle article;
@@ -332,7 +335,16 @@ class _NewsPageCardState extends State<NewsPageCard> {
 
   Widget _buildSportsIcon() {
     final category = widget.article.category.toLowerCase();
-    final sportDisplayName = SportsIcons.getSportDisplayName(widget.article.category);
+    
+    // Try to get sport display name from SettingsProvider (dynamic), fallback to static
+    String sportDisplayName;
+    try {
+      final settingsProvider = context.read<SettingsProvider>();
+      sportDisplayName = settingsProvider.getSportDisplayName(widget.article.category);
+    } catch (e) {
+      // Fallback to static method if provider not available
+      sportDisplayName = SportsIcons.getSportDisplayName(widget.article.category);
+    }
 
     // Check if article has imageUrl first, then fallback to custom images
     if (widget.article.imageUrl != null && widget.article.imageUrl!.isNotEmpty) {
@@ -357,7 +369,7 @@ class _NewsPageCardState extends State<NewsPageCard> {
       // Optimized caching configuration for faster loading
       cacheKey: FirebaseImageService.generateCacheKey(optimizedImageUrl, widget.article.id, prefix: 'page_card_thumb'),
       memCacheWidth: 300, // Optimized for 160px height display
-      memCacheHeight: 180, // Match display aspect ratio  
+      memCacheHeight: 180, // Match display aspect ratio
       maxWidthDiskCache: 300, // Smaller cache for faster access
       maxHeightDiskCache: 180, // Match exact display size
       
@@ -515,24 +527,24 @@ class _NewsPageCardState extends State<NewsPageCard> {
       children: [
         // Category badge on the left
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-              width: 1,
-            ),
-          ),
-          child: Text(
-            _formatCategory(widget.article.category),
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.primary,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.3,
-            ),
-          ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        _formatCategory(widget.article.category),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.primary,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+        ),
+      ),
         ),
         
         const Spacer(),
@@ -611,12 +623,12 @@ class _NewsPageCardState extends State<NewsPageCard> {
     }
     
     return Text(
-      widget.article.summary,
-      style: TextStyle(
-        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-        fontSize: 13,
-        height: 1.3,
-      ),
+        widget.article.summary,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+          fontSize: 13,
+          height: 1.3,
+        ),
       maxLines: maxLines, // Responsive line count for optimal UX
       overflow: TextOverflow.ellipsis, // Add ... when truncated
     );
@@ -645,9 +657,7 @@ class _NewsPageCardState extends State<NewsPageCard> {
                   ),
                   Flexible(
                     child: GestureDetector(
-                      onTap: () {
-                        // TODO: Open source website
-                      },
+                      onTap: () => _launchSourceUrl(context),
                       child: Text(
                         _getSourceName(),
                         style: TextStyle(
@@ -691,8 +701,8 @@ class _NewsPageCardState extends State<NewsPageCard> {
               ),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+          mainAxisSize: MainAxisSize.min,
+          children: [
                 Text(
                   'See more',
                   style: TextStyle(
@@ -817,6 +827,7 @@ class _NewsPageCardState extends State<NewsPageCard> {
       ),
     );
   }
+
 
   String _getSourceName() {
     // Use the actual source from the article if available
