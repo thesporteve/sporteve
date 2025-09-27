@@ -131,12 +131,189 @@ class AdminDataService {
   Future<void> deleteTournament(String id) => _tournamentService.deleteTournament(id);
   Future<Tournament?> getTournamentById(String id) => _tournamentService.getTournamentById(id);
 
-  // Athlete Methods (delegated to existing service)
-  Future<List<Athlete>> getAllAthletes() => _tournamentService.getAllAthletes();
-  Future<String> addAthlete(Athlete athlete) => _tournamentService.addAthlete(athlete);
-  Future<void> updateAthlete(String id, Athlete athlete) => _tournamentService.updateAthlete(id, athlete);
-  Future<void> deleteAthlete(String id) => _tournamentService.deleteAthlete(id);
-  Future<Athlete?> getAthleteById(String id) => _tournamentService.getAthleteById(id);
+  // Enhanced Athlete Methods with proper collection handling
+  Future<List<Athlete>> getAllAthletes() async {
+    try {
+      print('Fetching all athletes from "athletes" collection...');
+      final querySnapshot = await _firestore
+          .collection('athletes')
+          .orderBy('name')
+          .get();
+
+      print('Found ${querySnapshot.docs.length} athletes');
+      
+      final athletes = querySnapshot.docs
+          .map((doc) => Athlete.fromFirestore(doc.id, doc.data()))
+          .toList();
+
+      return athletes;
+    } catch (e) {
+      print('Error fetching athletes: $e');
+      // Try without orderBy as fallback
+      try {
+        final querySnapshot = await _firestore
+            .collection('athletes')
+            .get();
+        
+        final athletes = querySnapshot.docs
+            .map((doc) => Athlete.fromFirestore(doc.id, doc.data()))
+            .toList();
+        
+        // Sort in memory if Firestore orderBy fails
+        athletes.sort((a, b) => a.name.compareTo(b.name));
+        return athletes;
+      } catch (fallbackError) {
+        print('Fallback also failed: $fallbackError');
+        return [];
+      }
+    }
+  }
+
+  Future<String> addAthlete(Athlete athlete) async {
+    try {
+      final docRef = await _firestore
+          .collection('athletes')
+          .add(athlete.toFirestore());
+      print('Added athlete to athletes collection with ID: ${docRef.id}');
+      return docRef.id;
+    } catch (e) {
+      print('Error adding athlete: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateAthlete(String athleteId, Athlete athlete) async {
+    try {
+      final updateData = athlete.toFirestore();
+      // Ensure lastUpdated is current
+      updateData['last_updated'] = Timestamp.fromDate(DateTime.now());
+      
+      await _firestore
+          .collection('athletes')
+          .doc(athleteId)
+          .update(updateData);
+      print('Updated athlete: $athleteId');
+    } catch (e) {
+      print('Error updating athlete: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteAthlete(String athleteId) async {
+    try {
+      await _firestore
+          .collection('athletes')
+          .doc(athleteId)
+          .delete();
+      print('Deleted athlete: $athleteId');
+    } catch (e) {
+      print('Error deleting athlete: $e');
+      rethrow;
+    }
+  }
+
+  Future<Athlete?> getAthleteById(String athleteId) async {
+    try {
+      final docSnapshot = await _firestore
+          .collection('athletes')
+          .doc(athleteId)
+          .get();
+
+      if (!docSnapshot.exists) {
+        return null;
+      }
+
+      return Athlete.fromFirestore(docSnapshot.id, docSnapshot.data()!);
+    } catch (e) {
+      print('Error getting athlete by ID: $e');
+      return null;
+    }
+  }
+
+  /// Bulk import athletes from CSV data
+  Future<Map<String, dynamic>> bulkImportAthletes(List<Athlete> athletes) async {
+    int successCount = 0;
+    int errorCount = 0;
+    List<String> errors = [];
+    List<String> addedIds = [];
+
+    try {
+      print('Starting bulk import of ${athletes.length} athletes...');
+      
+      // Use batch for better performance and atomicity
+      WriteBatch batch = _firestore.batch();
+      
+      for (int i = 0; i < athletes.length; i++) {
+        try {
+          final athlete = athletes[i];
+          final docRef = _firestore.collection('athletes').doc();
+          batch.set(docRef, athlete.toFirestore());
+          addedIds.add(docRef.id);
+          successCount++;
+          
+          // Commit in batches of 500 (Firestore limit)
+          if ((i + 1) % 500 == 0 || i == athletes.length - 1) {
+            await batch.commit();
+            print('Committed batch of ${(i + 1) % 500} athletes. Total processed: ${i + 1}');
+            batch = _firestore.batch(); // Create new batch
+          }
+        } catch (e) {
+          errorCount++;
+          errors.add('Row ${i + 1}: ${e.toString()}');
+          print('Error importing athlete ${i + 1}: $e');
+        }
+      }
+
+      print('Bulk import completed. Success: $successCount, Errors: $errorCount');
+      
+      return {
+        'success_count': successCount,
+        'error_count': errorCount,
+        'errors': errors,
+        'added_ids': addedIds,
+        'total_processed': athletes.length,
+      };
+    } catch (e) {
+      print('Bulk import failed: $e');
+      return {
+        'success_count': successCount,
+        'error_count': athletes.length - successCount,
+        'errors': [e.toString()],
+        'added_ids': addedIds,
+        'total_processed': athletes.length,
+      };
+    }
+  }
+
+  /// Migrate legacy athlete data to new schema
+  Future<void> migrateLegacyAthletes() async {
+    try {
+      print('Starting legacy athlete data migration...');
+      
+      final querySnapshot = await _firestore
+          .collection('athletes')
+          .get();
+
+      int migratedCount = 0;
+      
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        
+        // Check if it's legacy format (has 'bio' field but not new fields)
+        if (data.containsKey('bio') && !data.containsKey('is_para_athlete')) {
+          final legacyAthlete = Athlete.fromLegacyData(doc.id, data);
+          await updateAthlete(doc.id, legacyAthlete);
+          migratedCount++;
+          print('Migrated legacy athlete: ${legacyAthlete.name}');
+        }
+      }
+      
+      print('Migration completed. Migrated $migratedCount athletes.');
+    } catch (e) {
+      print('Error during migration: $e');
+      rethrow;
+    }
+  }
 
   // Utility method to get available tournaments and athletes for linking
   Future<Map<String, String>> getTournamentOptions() async {

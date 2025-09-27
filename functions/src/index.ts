@@ -1055,3 +1055,269 @@ function formatContentForFirestore(
     };
   }
 }
+
+/**
+ * AI-Enhanced Athlete Profile Enhancement
+ * Fetches missing athlete information using AI
+ */
+export const enhanceAthleteProfile = functions.https.onCall(
+  async (data, context) => {
+    // Validate input
+    if (!data.athleteName || typeof data.athleteName !== "string") {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Athlete name is required and must be a string"
+      );
+    }
+
+    if (!data.sport || typeof data.sport !== "string") {
+      throw new functions.https.HttpsError(
+        "invalid-argument", 
+        "Sport is required and must be a string"
+      );
+    }
+
+    const athleteName = data.athleteName.trim();
+    const sport = data.sport.trim();
+    const currentData = data.currentData || {};
+
+    console.log(`🔍 Enhancing profile for: ${athleteName} (${sport})`);
+    console.log("📋 Current data:", JSON.stringify(currentData, null, 2));
+
+    try {
+      // Build prompt based on missing fields
+      const missingFields = identifyMissingFields(currentData);
+      
+      if (missingFields.length === 0) {
+        return {
+          success: true,
+          message: "No missing fields to enhance",
+          enhancedData: {},
+        };
+      }
+
+      console.log("🎯 Missing fields to enhance:", missingFields);
+
+      const prompt = buildAthleteEnhancementPrompt(
+        athleteName, 
+        sport, 
+        missingFields,
+        currentData
+      );
+
+      console.log("🤖 Sending request to OpenAI...");
+      
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3, // Lower temperature for more factual responses
+        max_tokens: 2000,
+      });
+
+      const aiResponse = response.choices[0]?.message?.content;
+      if (!aiResponse) {
+        throw new Error("No response from OpenAI");
+      }
+
+      console.log("✅ AI Response received:", aiResponse.substring(0, 200) + "...");
+
+      // Parse AI response
+      const enhancedData = parseAIResponse(aiResponse, missingFields);
+      
+      console.log("📊 Parsed enhanced data:", JSON.stringify(enhancedData, null, 2));
+
+      return {
+        success: true,
+        message: `Successfully enhanced ${Object.keys(enhancedData.fields || {}).length} fields`,
+        enhancedData,
+        usage: {
+          promptTokens: response.usage?.prompt_tokens || 0,
+          completionTokens: response.usage?.completion_tokens || 0,
+          totalTokens: response.usage?.total_tokens || 0,
+        },
+      };
+
+    } catch (error) {
+      console.error("❌ Error enhancing athlete profile:", error);
+      
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error occurred",
+        enhancedData: {},
+        error: {
+          code: error instanceof functions.https.HttpsError ? error.code : "internal",
+          details: error instanceof Error ? error.message : "Unknown error",
+        },
+      };
+    }
+  }
+);
+
+/**
+ * Identify which fields are missing or empty in current athlete data
+ */
+function identifyMissingFields(currentData: any): string[] {
+  const missingFields: string[] = [];
+  
+  // Check each field - never enhance name, sport, imageUrl
+  if (!currentData.dob || currentData.dob === "") {
+    missingFields.push("dob");
+  }
+  
+  if (!currentData.placeOfBirth || currentData.placeOfBirth.trim() === "") {
+    missingFields.push("placeOfBirth");
+  }
+  
+  if (!currentData.education || currentData.education.trim() === "") {
+    missingFields.push("education");
+  }
+  
+  if (!currentData.description || currentData.description.trim() === "") {
+    missingFields.push("description");
+  }
+  
+  if (!currentData.achievements || currentData.achievements.length === 0) {
+    missingFields.push("achievements");
+  }
+  
+  if (!currentData.awards || currentData.awards.length === 0) {
+    missingFields.push("awards");
+  }
+  
+  if (!currentData.funFacts || currentData.funFacts.length === 0) {
+    missingFields.push("funFacts");
+  }
+
+  // Para athlete status - only if explicitly undefined/null
+  if (currentData.isParaAthlete === undefined || currentData.isParaAthlete === null) {
+    missingFields.push("isParaAthlete");
+  }
+  
+  return missingFields;
+}
+
+/**
+ * Build AI prompt for athlete enhancement
+ */
+function buildAthleteEnhancementPrompt(
+  athleteName: string,
+  sport: string, 
+  missingFields: string[],
+  currentData: any
+): string {
+  return `
+You are an expert sports researcher. I need you to find accurate information about an athlete and provide ONLY the missing information requested.
+
+**ATHLETE:** ${athleteName}
+**SPORT:** ${sport}
+
+**CURRENT KNOWN INFORMATION:**
+${Object.keys(currentData).length > 0 ? JSON.stringify(currentData, null, 2) : "None"}
+
+**MISSING FIELDS TO RESEARCH:** ${missingFields.join(", ")}
+
+Please research this athlete from reliable sources and provide accurate information for ONLY the missing fields listed above. 
+
+**IMPORTANT RULES:**
+1. ONLY provide information for the missing fields I specified
+2. Never include Name, Sport, or ImageURL in your response
+3. Be factually accurate - if you're unsure, indicate lower confidence
+4. For achievements, include year and title
+5. For awards, list significant awards/honors
+6. For fun facts, include interesting but verified information
+7. Use proper date format for DOB: YYYY-MM-DD
+8. For para athlete status, only set true if athlete competes in Paralympic sports
+
+**RESPONSE FORMAT (JSON):**
+{
+  "confidence": 85,
+  "athlete_found": true,
+  "source_reliability": "high",
+  "fields": {
+    "dob": "YYYY-MM-DD",
+    "placeOfBirth": "City, Country", 
+    "education": "Educational background",
+    "description": "Professional biography (2-3 paragraphs)",
+    "isParaAthlete": true/false,
+    "achievements": [
+      {"year": 2023, "title": "Achievement title"},
+      {"year": 2022, "title": "Another achievement"}
+    ],
+    "awards": ["Award 1", "Award 2"],
+    "funFacts": ["Fact 1", "Fact 2"]
+  },
+  "notes": "Additional context or reliability notes"
+}
+
+If you cannot find reliable information about this athlete, respond with:
+{
+  "confidence": 0,
+  "athlete_found": false,
+  "source_reliability": "none",
+  "fields": {},
+  "notes": "No reliable information found for this athlete"
+}
+
+Research and respond with accurate JSON only:`;
+}
+
+/**
+ * Parse AI response into structured data
+ */
+function parseAIResponse(aiResponse: string, requestedFields: string[]): any {
+  try {
+    // Clean up the response - sometimes AI adds markdown formatting
+    let cleanResponse = aiResponse.trim();
+    
+    // Remove markdown code blocks if present
+    if (cleanResponse.startsWith("```json")) {
+      cleanResponse = cleanResponse.replace(/```json\n?/, "").replace(/\n?```$/, "");
+    } else if (cleanResponse.startsWith("```")) {
+      cleanResponse = cleanResponse.replace(/```\n?/, "").replace(/\n?```$/, "");
+    }
+    
+    const parsed = JSON.parse(cleanResponse);
+    
+    // Validate response structure
+    if (typeof parsed.confidence !== "number") {
+      parsed.confidence = 50; // Default confidence
+    }
+    
+    if (typeof parsed.athlete_found !== "boolean") {
+      parsed.athlete_found = false;
+    }
+    
+    if (!parsed.fields || typeof parsed.fields !== "object") {
+      parsed.fields = {};
+    }
+    
+    // Filter to only requested fields (additional safety)
+    const filteredFields: any = {};
+    for (const field of requestedFields) {
+      if (parsed.fields[field] !== undefined) {
+        filteredFields[field] = parsed.fields[field];
+      }
+    }
+    parsed.fields = filteredFields;
+    
+    console.log("🎯 Successfully parsed AI response:", {
+      confidence: parsed.confidence,
+      found: parsed.athlete_found,
+      fieldsEnhanced: Object.keys(parsed.fields),
+    });
+    
+    return parsed;
+    
+  } catch (error) {
+    console.error("❌ Error parsing AI response:", error);
+    console.log("📄 Raw AI response:", aiResponse);
+    
+    return {
+      confidence: 0,
+      athlete_found: false,
+      source_reliability: "error",
+      fields: {},
+      notes: `Error parsing AI response: ${error instanceof Error ? error.message : "Unknown error"}`,
+    };
+  }
+}

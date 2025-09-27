@@ -28,6 +28,9 @@ dependencies:
   # Date Formatting
   intl: ^0.18.1
   
+  # CSV Processing
+  csv: ^6.0.0
+  
   # Icons
   font_awesome_flutter: ^10.6.0
   

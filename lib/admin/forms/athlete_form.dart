@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../models/athlete.dart';
 import '../services/admin_data_service.dart';
+import '../services/csv_service.dart';
 import '../theme/admin_theme.dart';
 
 class AthleteForm extends StatefulWidget {
@@ -19,31 +21,26 @@ class AthleteForm extends StatefulWidget {
 
 class _AthleteFormState extends State<AthleteForm> {
   final _formKey = GlobalKey<FormState>();
+  
+  // Basic info controllers
   final _nameController = TextEditingController();
   final _sportController = TextEditingController();
-  final _bioController = TextEditingController();
+  final _placeOfBirthController = TextEditingController();
+  final _educationController = TextEditingController();
+  final _imageUrlController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  
+  // Complex data
+  bool _isParaAthlete = false;
+  DateTime? _dateOfBirth;
+  List<Achievement> _achievements = [];
+  List<String> _awards = [];
+  List<String> _funFacts = [];
 
   bool _isLoading = false;
 
-  // Popular sports for suggestions
-  final List<String> _popularSports = [
-    'Football',
-    'Basketball',
-    'Tennis',
-    'Cricket',
-    'Baseball',
-    'Soccer',
-    'Golf',
-    'Swimming',
-    'Athletics',
-    'Boxing',
-    'Wrestling',
-    'Volleyball',
-    'Badminton',
-    'Table Tennis',
-    'Hockey',
-    'Rugby',
-  ];
+  // Popular sports from CSV service
+  final List<String> _popularSports = CsvService.supportedSports;
 
   @override
   void initState() {
@@ -57,14 +54,26 @@ class _AthleteFormState extends State<AthleteForm> {
   void _populateFields(Athlete athlete) {
     _nameController.text = athlete.name;
     _sportController.text = athlete.sport;
-    _bioController.text = athlete.bio;
+    _placeOfBirthController.text = athlete.placeOfBirth;
+    _educationController.text = athlete.education;
+    _imageUrlController.text = athlete.imageUrl ?? '';
+    _descriptionController.text = athlete.description;
+    
+    _isParaAthlete = athlete.isParaAthlete;
+    _dateOfBirth = athlete.dob;
+    _achievements = List.from(athlete.achievements);
+    _awards = List.from(athlete.awards);
+    _funFacts = List.from(athlete.funFacts);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _sportController.dispose();
-    _bioController.dispose();
+    _placeOfBirthController.dispose();
+    _educationController.dispose();
+    _imageUrlController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -80,7 +89,16 @@ class _AthleteFormState extends State<AthleteForm> {
         id: widget.athlete?.id ?? '',
         name: _nameController.text.trim(),
         sport: _sportController.text.trim(),
-        bio: _bioController.text.trim(),
+        isParaAthlete: _isParaAthlete,
+        dob: _dateOfBirth,
+        placeOfBirth: _placeOfBirthController.text.trim(),
+        education: _educationController.text.trim(),
+        imageUrl: _imageUrlController.text.trim().isEmpty ? null : _imageUrlController.text.trim(),
+        description: _descriptionController.text.trim(),
+        achievements: _achievements,
+        awards: _awards,
+        funFacts: _funFacts,
+        lastUpdated: DateTime.now(),
       );
 
       final dataService = AdminDataService.instance;
@@ -128,6 +146,124 @@ class _AthleteFormState extends State<AthleteForm> {
         });
       }
     }
+  }
+
+  /// Date picker for date of birth
+  Future<void> _selectDateOfBirth() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _dateOfBirth ?? DateTime.now().subtract(const Duration(days: 365 * 25)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      helpText: 'Select Date of Birth',
+    );
+    
+    if (picked != null && picked != _dateOfBirth) {
+      setState(() {
+        _dateOfBirth = picked;
+      });
+    }
+  }
+
+  /// Add new achievement
+  void _addAchievement() {
+    showDialog(
+      context: context,
+      builder: (context) => _AchievementDialog(
+        onSaved: (achievement) {
+          setState(() {
+            _achievements.add(achievement);
+          });
+        },
+      ),
+    );
+  }
+
+  /// Edit existing achievement
+  void _editAchievement(int index) {
+    showDialog(
+      context: context,
+      builder: (context) => _AchievementDialog(
+        achievement: _achievements[index],
+        onSaved: (achievement) {
+          setState(() {
+            _achievements[index] = achievement;
+          });
+        },
+      ),
+    );
+  }
+
+  /// Remove achievement
+  void _removeAchievement(int index) {
+    setState(() {
+      _achievements.removeAt(index);
+    });
+  }
+
+  /// Add new award
+  void _addAward() {
+    _showStringInputDialog(
+      title: 'Add Award',
+      hint: 'Enter award name',
+      onSaved: (award) {
+        setState(() {
+          _awards.add(award);
+        });
+      },
+    );
+  }
+
+  /// Add new fun fact
+  void _addFunFact() {
+    _showStringInputDialog(
+      title: 'Add Fun Fact',
+      hint: 'Enter fun fact',
+      onSaved: (fact) {
+        setState(() {
+          _funFacts.add(fact);
+        });
+      },
+    );
+  }
+
+  /// Generic string input dialog
+  void _showStringInputDialog({
+    required String title,
+    required String hint,
+    required Function(String) onSaved,
+    String initialValue = '',
+  }) {
+    final controller = TextEditingController(text: initialValue);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(hintText: hint),
+          maxLines: null,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.isNotEmpty) {
+                onSaved(value);
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -262,23 +398,18 @@ class _AthleteFormState extends State<AthleteForm> {
               ),
               const SizedBox(height: 16),
 
-              // Bio
+              // Description/Biography
               TextFormField(
-                controller: _bioController,
+                controller: _descriptionController,
                 decoration: const InputDecoration(
-                  labelText: 'Biography *',
-                  hintText: 'Enter athlete biography and achievements',
+                  labelText: 'Description',
+                  hintText: 'Enter general summary/biography of the athlete',
                   alignLabelWithHint: true,
                 ),
                 maxLines: 6,
                 textCapitalization: TextCapitalization.sentences,
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Biography is required';
-                  }
-                  if (value.trim().length < 20) {
-                    return 'Biography should be at least 20 characters long';
-                  }
+                  // Description is optional, so no validation needed
                   return null;
                 },
               ),
