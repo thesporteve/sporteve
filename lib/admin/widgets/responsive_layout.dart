@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../screens/admin_dashboard_screen.dart';
 import '../theme/admin_theme.dart';
+import '../config/admin_config.dart';
 
 class ResponsiveLayout extends StatelessWidget {
   final int selectedIndex;
@@ -35,7 +36,7 @@ class ResponsiveLayout extends StatelessWidget {
           children: [
             const Icon(Icons.admin_panel_settings, size: 24),
             const SizedBox(width: 12),
-            const Text('SportEve Admin v1.2 - Fixed Layout'),
+            Text(AdminConfig.fullVersionString),
             const SizedBox(width: 16),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -124,14 +125,14 @@ class ResponsiveLayout extends StatelessWidget {
   Widget _buildMobileLayout(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.admin_panel_settings, size: 20),
-            SizedBox(width: 8),
+            const Icon(Icons.admin_panel_settings, size: 20),
+            const SizedBox(width: 8),
             Flexible(
               child: Text(
-                'SportEve Admin',
-                style: TextStyle(fontSize: 18),
+                AdminConfig.adminName,
+                style: const TextStyle(fontSize: 18),
                 overflow: TextOverflow.ellipsis,
               ),
             ),

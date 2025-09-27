@@ -1,0 +1,28 @@
+name,category,type,description,display_name,icon_name,primary_color,is_active,sort_order
+football,Team Sport,Outdoor,Association football played with feet,Football,sports_soccer,#2196F3,true,200
+basketball,Team Sport,Indoor,Hoop shooting sport with two teams,Basketball,sports_basketball,#FF5722,true,300
+tennis,Individual Sport,Outdoor,Racket sport played on a court,Tennis,sports_tennis,#8BC34A,true,400
+swimming,Individual Sport,Water,Competitive aquatic racing sport,Swimming,pool,#03A9F4,true,500
+boxing,Individual Sport,Combat,Combat sport with protective gloves,Boxing,sports_mma,#F44336,true,600
+running,Individual Sport,Outdoor,Track and field racing,Running,directions_run,#607D8B,true,800
+hockey,Team Sport,Outdoor,Team sport played with sticks and ball,Hockey,sports_hockey,#795548,true,900
+volleyball,Team Sport,Indoor,Net sport with team ball play,Volleyball,sports_volleyball,#FF9800,true,1000
+archery,Individual Sport,Outdoor,Bow and arrow target sport,Archery,gps_fixed,#795548,true,1200
+weightlifting,Individual Sport,Indoor,Strength sport with barbells,Weightlifting,fitness_center,#9E9E9E,true,1300
+wrestling,Individual Sport,Combat,Grappling combat sport,Wrestling,sports_mma,#FF5722,true,1400
+baseball,Team Sport,Outdoor,Bat and ball sport with bases,Baseball,sports_baseball,#3F51B5,true,1500
+rugby,Team Sport,Outdoor,Contact team sport with oval ball,Rugby,sports_rugby,#4CAF50,true,1600
+table_tennis,Individual Sport,Indoor,Paddle sport on table with net,Table Tennis,sports_tennis,#E91E63,true,1700
+judo,Individual Sport,Combat,Martial art and combat sport,Judo,sports_mma,#FFC107,true,1800
+sailing,Individual Sport,Water,Wind-powered water sport,Sailing,sailing,#00BCD4,true,1900
+golf,Individual Sport,Outdoor,Precision sport with clubs and holes,Golf,sports_golf,#4CAF50,true,2000
+karate,Individual Sport,Combat,Striking martial art,Karate,sports_mma,#FF9800,true,2100
+taekwondo,Individual Sport,Combat,Korean martial art with kicks,Taekwondo,sports_mma,#9C27B0,true,2200
+handball,Team Sport,Indoor,Team sport played with hands,Handball,sports_handball,#2196F3,true,2300
+shooting,Individual Sport,Indoor,Target sport with firearms,Shooting,gps_fixed,#37474F,true,2400
+diving,Individual Sport,Water,Aquatic sport from height,Diving,pool,#00ACC1,true,2500
+javelin_throw,Individual Sport,Outdoor,Track and field throwing event,Javelin Throw,sports,#8BC34A,true,2600
+marathon,Individual Sport,Outdoor,Long distance running race,Marathon,directions_run,#FF5722,true,2700
+cycling,Individual Sport,Outdoor,Bicycle racing sport,Cycling,directions_bike,#4CAF50,true,2800
+squash,Individual Sport,Indoor,Racket sport in enclosed court,Squash,sports_tennis,#9C27B0,true,2900
+kabaddi,Team Sport,Outdoor,Contact team sport from South Asia,Kabaddi,sports,#FF9800,true,3000

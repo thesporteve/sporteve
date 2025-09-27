@@ -45,12 +45,19 @@ class _SportsWikiFormState extends State<SportsWikiForm> {
   late TextEditingController _tagsController;
   late TextEditingController _relatedSportsController;
   late TextEditingController _indianMilestonesController;
+  
+  // UI-specific field controllers
+  late TextEditingController _displayNameController;
+  late TextEditingController _iconNameController;
+  late TextEditingController _primaryColorController;
+  late TextEditingController _sortOrderController;
 
   // Dropdown values
   String _selectedCategory = 'Team Sport';
   String _selectedType = 'Outdoor';
   String _selectedDifficulty = 'Medium';
   bool _isOlympicSport = false;
+  bool _isActive = true;
 
   // Image handling
   Map<String, String> _currentImages = {};
@@ -89,6 +96,12 @@ class _SportsWikiFormState extends State<SportsWikiForm> {
     _tagsController = TextEditingController();
     _relatedSportsController = TextEditingController();
     _indianMilestonesController = TextEditingController();
+    
+    // UI-specific field controllers
+    _displayNameController = TextEditingController();
+    _iconNameController = TextEditingController();
+    _primaryColorController = TextEditingController();
+    _sortOrderController = TextEditingController();
   }
 
   void _populateFormIfEditing() {
@@ -120,6 +133,13 @@ class _SportsWikiFormState extends State<SportsWikiForm> {
       _relatedSportsController.text = sport.relatedSports?.join(', ') ?? '';
       _indianMilestonesController.text = sport.indianMilestones?.join('\n') ?? '';
 
+      // UI-specific fields
+      _displayNameController.text = sport.displayName ?? '';
+      _iconNameController.text = sport.iconName ?? '';
+      _primaryColorController.text = sport.primaryColor ?? '';
+      _sortOrderController.text = sport.sortOrder.toString();
+      _isActive = sport.isActive;
+
       // Handle existing images
       _currentImages = sport.images ?? {};
     }
@@ -144,6 +164,13 @@ class _SportsWikiFormState extends State<SportsWikiForm> {
     _tagsController.dispose();
     _relatedSportsController.dispose();
     _indianMilestonesController.dispose();
+    
+    // UI-specific field controllers
+    _displayNameController.dispose();
+    _iconNameController.dispose();
+    _primaryColorController.dispose();
+    _sortOrderController.dispose();
+    
     super.dispose();
   }
 
@@ -400,6 +427,12 @@ class _SportsWikiFormState extends State<SportsWikiForm> {
         indianMilestones: _parseListField(_indianMilestonesController.text),
         regionalPopularity: _regionalPopularityController.text.trim().isEmpty ? null : _regionalPopularityController.text.trim(),
         iconicMoments: _iconicMomentsController.text.trim().isEmpty ? null : _iconicMomentsController.text.trim(),
+        // UI-specific fields
+        displayName: _displayNameController.text.trim().isEmpty ? null : _displayNameController.text.trim(),
+        iconName: _iconNameController.text.trim().isEmpty ? null : _iconNameController.text.trim(),
+        primaryColor: _primaryColorController.text.trim().isEmpty ? null : _primaryColorController.text.trim(),
+        isActive: _isActive,
+        sortOrder: int.tryParse(_sortOrderController.text.trim()) ?? 1000,
         createdAt: widget.sportWiki?.createdAt ?? DateTime.now(),
         lastUpdated: DateTime.now(),
       );
@@ -470,32 +503,29 @@ class _SportsWikiFormState extends State<SportsWikiForm> {
   Widget build(BuildContext context) {
     return Form(
       key: _formKey,
-      child: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Basic Information Card
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Basic Information',
-                            style: AdminTheme.titleMedium.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          
-                          _buildFormField(
-                            label: 'Sport Name',
-                            controller: _nameController,
-                            hint: 'e.g., Cricket, Football, Tennis',
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Basic Information Card
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Basic Information',
+                      style: AdminTheme.titleMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    _buildFormField(
+                      label: 'Sport Name',
+                      controller: _nameController,
+                      hint: 'e.g., Cricket, Football, Tennis',
                             required: true,
                           ),
                           
@@ -590,6 +620,105 @@ class _SportsWikiFormState extends State<SportsWikiForm> {
                                 ),
                               ),
                             ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // UI Configuration Card
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'UI Configuration',
+                            style: AdminTheme.titleMedium.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _displayNameController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Display Name',
+                                    hintText: 'e.g., Football (if different from name)',
+                                  ),
+                                  textCapitalization: TextCapitalization.words,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _iconNameController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Icon Name',
+                                    hintText: 'e.g., sports_soccer, sports_cricket',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _primaryColorController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Primary Color',
+                                    hintText: 'e.g., #4CAF50',
+                                  ),
+                                  validator: (value) {
+                                    if (value != null && value.isNotEmpty) {
+                                      if (!RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(value)) {
+                                        return 'Enter valid hex color (e.g., #4CAF50)';
+                                      }
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _sortOrderController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Sort Order',
+                                    hintText: 'e.g., 100 (lower = higher priority)',
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                  validator: (value) {
+                                    if (value != null && value.isNotEmpty) {
+                                      if (int.tryParse(value) == null) {
+                                        return 'Enter a valid number';
+                                      }
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          CheckboxListTile(
+                            title: const Text('Active'),
+                            subtitle: const Text('Show in dropdowns and forms'),
+                            value: _isActive,
+                            onChanged: (value) {
+                              setState(() {
+                                _isActive = value!;
+                              });
+                            },
                           ),
                         ],
                       ),
@@ -767,55 +896,52 @@ class _SportsWikiFormState extends State<SportsWikiForm> {
 
                   // Image Upload Section
                   _buildImageUploadSection(),
+            
+            // Action buttons
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Colors.grey[300]!),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _isSaving ? null : widget.onCancel,
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: _isSaving ? null : _saveSportsWiki,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AdminTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: _isSaving
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Text('Saving...'),
+                            ],
+                          )
+                        : Text(widget.sportWiki == null ? 'Create Sport' : 'Update Sport'),
+                  ),
                 ],
               ),
             ),
-          ),
-          
-          // Action buttons
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(color: Colors.grey[300]!),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: _isSaving ? null : widget.onCancel,
-                  child: const Text('Cancel'),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: _isSaving ? null : _saveSportsWiki,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AdminTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: _isSaving
-                      ? const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Text('Saving...'),
-                          ],
-                        )
-                      : Text(widget.sportWiki == null ? 'Create Sport' : 'Update Sport'),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

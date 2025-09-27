@@ -34,6 +34,13 @@ class SportWiki {
   final String? regionalPopularity;
   final String? iconicMoments;
   
+  // UI-specific fields for dynamic sports management
+  final String? displayName;        // "Football" vs "football" - consistent UI display
+  final String? iconName;           // Material icon name (e.g., "sports_soccer")
+  final String? primaryColor;       // Hex color for sport theming (e.g., "#FF5722")
+  final bool isActive;              // Controls visibility in dropdowns/forms
+  final int sortOrder;              // Display order priority (lower = higher priority)
+  
   // System fields
   final DateTime createdAt;
   final DateTime? lastUpdated;
@@ -63,6 +70,12 @@ class SportWiki {
     this.indianMilestones,
     this.regionalPopularity,
     this.iconicMoments,
+    // UI-specific fields
+    this.displayName,
+    this.iconName,
+    this.primaryColor,
+    this.isActive = true,           // Default to active
+    this.sortOrder = 1000,          // Default sort order (lower = higher priority)
     required this.createdAt,
     this.lastUpdated,
   });
@@ -114,6 +127,12 @@ class SportWiki {
           : null,
       regionalPopularity: data['regional_popularity'],
       iconicMoments: data['iconic_moments'],
+      // UI-specific fields
+      displayName: data['display_name'],
+      iconName: data['icon_name'],
+      primaryColor: data['primary_color'],
+      isActive: data['is_active'] ?? true,
+      sortOrder: data['sort_order'] ?? 1000,
       createdAt: _parseTimestamp(data['created_at']),
       lastUpdated: _parseTimestamp(data['last_updated']),
     );
@@ -164,6 +183,12 @@ class SportWiki {
           : null,
       regionalPopularity: json['regional_popularity'],
       iconicMoments: json['iconic_moments'],
+      // UI-specific fields
+      displayName: json['display_name'],
+      iconName: json['icon_name'],
+      primaryColor: json['primary_color'],
+      isActive: json['is_active'] ?? true,
+      sortOrder: json['sort_order'] ?? 1000,
       createdAt: _parseTimestamp(json['created_at']),
       lastUpdated: _parseTimestamp(json['last_updated']),
     );
@@ -216,6 +241,12 @@ class SportWiki {
       'indian_milestones': indianMilestones,
       'regional_popularity': regionalPopularity,
       'iconic_moments': iconicMoments,
+      // UI-specific fields
+      'display_name': displayName,
+      'icon_name': iconName,
+      'primary_color': primaryColor,
+      'is_active': isActive,
+      'sort_order': sortOrder,
       'created_at': FieldValue.serverTimestamp(),
       'last_updated': FieldValue.serverTimestamp(),
     };
@@ -248,6 +279,12 @@ class SportWiki {
       'indian_milestones': indianMilestones,
       'regional_popularity': regionalPopularity,
       'iconic_moments': iconicMoments,
+      // UI-specific fields
+      'display_name': displayName,
+      'icon_name': iconName,
+      'primary_color': primaryColor,
+      'is_active': isActive,
+      'sort_order': sortOrder,
       'created_at': createdAt.toIso8601String(),
       'last_updated': lastUpdated?.toIso8601String(),
     };
@@ -278,6 +315,12 @@ class SportWiki {
     List<String>? indianMilestones,
     String? regionalPopularity,
     String? iconicMoments,
+    // UI-specific fields
+    String? displayName,
+    String? iconName,
+    String? primaryColor,
+    bool? isActive,
+    int? sortOrder,
     DateTime? createdAt,
     DateTime? lastUpdated,
   }) {
@@ -306,6 +349,12 @@ class SportWiki {
       indianMilestones: indianMilestones ?? this.indianMilestones,
       regionalPopularity: regionalPopularity ?? this.regionalPopularity,
       iconicMoments: iconicMoments ?? this.iconicMoments,
+      // UI-specific fields
+      displayName: displayName ?? this.displayName,
+      iconName: iconName ?? this.iconName,
+      primaryColor: primaryColor ?? this.primaryColor,
+      isActive: isActive ?? this.isActive,
+      sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       lastUpdated: lastUpdated ?? this.lastUpdated,
     );
