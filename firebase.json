@@ -20,6 +20,7 @@
     }
   ],
   "hosting": {
+    "site": "sporteveweb",
     "public": "build/web",
     "ignore": [
       "firebase.json",
